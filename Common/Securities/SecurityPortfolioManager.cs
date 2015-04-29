@@ -349,7 +349,7 @@ namespace QuantConnect.Securities
                 // we can't include forex in this calculation since we would be double account with respect to the cash book
                 var totalHoldingsCostWithoutForex = (from position in Securities.Values
                                                      where position.Type != SecurityType.Forex
-                                                     select position.Holdings.AbsoluteHoldingsCost).Sum();
+                                                     select position.Holdings.UnleveredAbsoluteHoldingsCost).Sum();
 
                 return CashBook.TotalValueInAccountCurrency + totalUnrealizedProfitWithoutForex + totalHoldingsCostWithoutForex;
             }
