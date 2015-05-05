@@ -271,7 +271,8 @@ namespace QuantConnect.Lean.Engine
                             //Get all the error messages: internal in algorithm and external in setup handler.
                             var errorMessage = String.Join(",", algorithm.ErrorMessages);
                             errorMessage += String.Join(",", SetupHandler.Errors);
-                            throw new Exception(errorMessage);
+                            ResultHandler.RuntimeError(errorMessage);
+                            Api.SetAlgorithmStatus(job.AlgorithmId, AlgorithmStatus.RuntimeError);
                         }
                     }
                     catch (Exception err)
@@ -286,7 +287,7 @@ namespace QuantConnect.Lean.Engine
                     {
                         //-> Reset the backtest stopwatch; we're now running the algorithm.
                         startTime = DateTime.Now;
-
+                        
                         //Set algorithm as locked; set it to live mode if we're trading live, and set it to locked for no further updates.
                         algorithm.SetAlgorithmId(job.AlgorithmId);
                         algorithm.SetLiveMode(LiveMode);
@@ -314,6 +315,7 @@ namespace QuantConnect.Lean.Engine
                         threadTransactions.Start(); // Transaction modeller scanning new order requests
                         threadRealTime.Start(); // RealTime scan time for time based events:
                         // Result manager scanning message queue: (started earlier)
+                        ResultHandler.DebugMessage(string.Format("Launching analysis for {0} with LEAN Engine v{1}", job.AlgorithmId, Constants.Version));
 
                         try
                         {
@@ -396,7 +398,7 @@ namespace QuantConnect.Lean.Engine
                                     var profitLoss =
                                         new SortedDictionary<DateTime, decimal>(algorithm.Transactions.TransactionRecord);
                                     statistics = Statistics.Statistics.Generate(equity, profitLoss, performance,
-                                        SetupHandler.StartingCapital, 252);
+                                        SetupHandler.StartingPortfolioValue, 252);
                                 }
                             }
                             catch (Exception err)
@@ -434,21 +436,23 @@ namespace QuantConnect.Lean.Engine
                     if (threadFeed != null && threadFeed.IsAlive) threadFeed.Abort();
                     if (threadTransactions != null && threadTransactions.IsAlive) threadTransactions.Abort();
                     if (threadResults != null && threadResults.IsAlive) threadResults.Abort();
+                    _brokerage.Disconnect();
+                    SetupHandler.Dispose();
                     Log.Trace("Engine.Main(): Analysis Completed and Results Posted.");
                 }
                 catch (Exception err)
                 {
                     Log.Error("Engine.Main(): Error running algorithm: " + err.Message + " >> " + err.StackTrace);
                 }
-                finally 
+                finally
                 {
+                    //No matter what for live mode; make sure we've set algorithm status in the API for "not running" conditions:
+                    if (LiveMode && AlgorithmManager.State != AlgorithmStatus.Running && AlgorithmManager.State != AlgorithmStatus.RuntimeError)
+                        Api.SetAlgorithmStatus(job.AlgorithmId, AlgorithmManager.State);
+
                     //Delete the message from the job queue:
                     JobQueue.AcknowledgeJob(job);
                     Log.Trace("Engine.Main(): Packet removed from queue: " + job.AlgorithmId);
-
-                    //No matter what for live mode; make sure we've set algorithm status in the API for "not running" conditions:
-                    if (LiveMode && AlgorithmManager.State != AlgorithmStatus.Running && AlgorithmManager.State != AlgorithmStatus.RuntimeError) 
-                        Api.SetAlgorithmStatus(job.AlgorithmId, AlgorithmManager.State);
                     
                     //Attempt to clean up ram usage:
                     GC.Collect();

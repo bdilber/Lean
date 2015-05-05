@@ -390,6 +390,42 @@ namespace QuantConnect.Algorithm
             RegisterIndicator(symbol, williamspercentr, resolution, selector);
             return williamspercentr;
         }
+
+        /// <summary>
+        /// Creates a new LinearWeightedMovingAverage indicator.  This indicator will linearly distribute
+        /// the weights across the periods.  
+        /// </summary>
+        /// <param name="symbol">The symbol whose Williams %R we want</param>
+        /// <param name="period">The period over which to compute the Williams %R</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        /// <returns></returns>
+        public LinearWeightedMovingAverage LWMA(string symbol, int period, Resolution? resolution = null, Func<BaseData, decimal> selector = null)
+        {
+            string name = QuantConnect.Algorithm.QCAlgorithm.CreateIndicatorName(symbol, "LWMA" + period, resolution);
+            var lwma = new LinearWeightedMovingAverage(name, period);
+            RegisterIndicator(symbol, lwma, resolution, selector);
+            return lwma;
+        }
+
+        /// <summary>
+        /// Creates a new On Balance Volume indicator. This will compute the cumulative total volume
+        /// based on whether the close price being higher or lower than the previous period.
+        /// The indicator will be automatically updated on the given resolution.
+        /// </summary>
+        /// <param name="symbol">The symbol whose On Balance Volume we seek</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value).</param>
+        /// <returns>The On Balance Volume indicator for the requested symbol.</returns>
+        public OnBalanceVolume OnBalanceVolume(string symbol, Resolution? resolution = null,
+            Func<BaseData, TradeBar> selector = null)
+        {
+            string name = CreateIndicatorName(symbol, "OBV", resolution);
+            var onBalanceVolume = new OnBalanceVolume(name);
+            RegisterIndicator(symbol, onBalanceVolume, resolution);
+            return onBalanceVolume;
+        }
+
         /// <summary>
         /// Creates and registers a new consolidator to receive automatic updates at the specified resolution as well as configures
         /// the indicator to receive updates from the consolidator.
@@ -423,7 +459,7 @@ namespace QuantConnect.Algorithm
             consolidator.DataConsolidated += (sender, consolidated) =>
             {
                 var value = selector(consolidated);
-                indicator.Update(consolidated.Time, value);
+                indicator.Update(new IndicatorDataPoint(consolidated.Symbol, consolidated.EndTime, value));
             };
         }
 

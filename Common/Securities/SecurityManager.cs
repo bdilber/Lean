@@ -40,7 +40,6 @@ namespace QuantConnect.Securities
         *********************************************************/
         //Internal dictionary implementation:
         private IDictionary<string, Security> _securityManager;
-        private IDictionary<string, SecurityHolding> _securityHoldings;
         private int _minuteLimit = 500;
         private int _minuteMemory = 2;
         private int _secondLimit = 100;
@@ -62,7 +61,6 @@ namespace QuantConnect.Securities
         public SecurityManager()
         {
             _securityManager = new Dictionary<string, Security>(); 
-            _securityHoldings = new Dictionary<string, SecurityHolding>();
         }
 
         /******************************************************** 
@@ -104,7 +102,6 @@ namespace QuantConnect.Securities
         {
             CheckResolutionCounts(pair.Value.Resolution);
             _securityManager.Add(pair.Key, pair.Value);
-            _securityHoldings.Add(pair.Key, pair.Value.Holdings);
         }
 
 
@@ -240,17 +237,6 @@ namespace QuantConnect.Securities
 
 
         /// <summary>
-        /// Get the internal enumerator for the securities collection for use by the Portfolio object.
-        /// </summary>
-        /// <remarks>IDictionary implementation</remarks>
-        /// <returns>Enumerator</returns>
-        public IDictionary<string, SecurityHolding> GetInternalPortfolioCollection()
-        {
-            return _securityHoldings;
-        }
-
-
-        /// <summary>
         /// Get the enumerator for this securities collection.
         /// </summary>
         /// <remarks>IDictionary implementation</remarks>
@@ -273,14 +259,13 @@ namespace QuantConnect.Securities
                 symbol = symbol.ToUpper();
                 if (!_securityManager.ContainsKey(symbol))
                 {
-                    throw new Exception("This asset symbol (" + symbol + ") was not found in your security list. Please add this security or check it exists before using it with 'data.ContainsKey(\"" + symbol + "\")'");
+                    throw new Exception("This asset symbol (" + symbol + ") was not found in your security list. Please add this security or check it exists before using it with 'Securities.ContainsKey(\"" + symbol + "\")'");
                 } 
                 return _securityManager[symbol];
             }
             set 
             {
                 _securityManager[symbol] = value;
-                _securityHoldings[symbol] = value.Holdings;
             }
         }
 
@@ -293,11 +278,13 @@ namespace QuantConnect.Securities
         public int  GetResolutionCount(Resolution resolution) 
         {
             var count = 0;
-            try 
+            try
             {
                 count = (from security in _securityManager.Values
-                          where security.Resolution == resolution
-                          select security.Resolution).Count();
+                         where security.Resolution == resolution
+                         // don't count feeds we auto add
+                         where !security.SubscriptionDataConfig.IsInternalFeed
+                         select security.Resolution).Count();
             } 
             catch (Exception err) 
             {
@@ -348,7 +335,7 @@ namespace QuantConnect.Securities
                             break;
                         }
                     }
-                    security.Update(time, dataPoint);
+                    security.SetMarketPrice(time, dataPoint);
                 }
             }
             catch (Exception err) 
