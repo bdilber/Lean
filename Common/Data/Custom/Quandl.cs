@@ -37,8 +37,17 @@ namespace QuantConnect.Data.Custom
         *********************************************************/
         private bool _isInitialized = false;
         private readonly List<string> _propertyNames = new List<string>();
-        private string _authCode = "";
         private readonly string _valueColumn;
+        private static string _authCode = "";
+
+        /// <summary>
+        /// Is the auth
+        /// </summary>
+        public static bool IsAuthCodeSet
+        {
+            get;
+            private set;
+        }
 
         /******************************************************** 
         * CLASS CONSTRUCTOR
@@ -48,6 +57,7 @@ namespace QuantConnect.Data.Custom
         /// </summary>
         public Quandl()
         {
+            base.EndTime = Time + TimeSpan.FromDays(1);
             _valueColumn = "Close";
         }
         
@@ -119,14 +129,15 @@ namespace QuantConnect.Data.Custom
             return @"https://www.quandl.com/api/v1/datasets/" + config.Symbol + ".csv?sort_order=asc&exclude_headers=false&auth_token=" + _authCode;
         }
 
-
+        
         /// <summary>
         /// Set the auth code for the quandl set to the QuantConnect auth code.
         /// </summary>
         /// <param name="authCode"></param>
-        public void SetAuthCode(string authCode)
+        public static void SetAuthCode(string authCode)
         {
             _authCode = authCode;
+            IsAuthCodeSet = true;
         }
     }
 

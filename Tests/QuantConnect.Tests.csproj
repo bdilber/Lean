@@ -64,8 +64,10 @@
     <Compile Include="Common\Securities\Forex\ForexTests.cs" />
     <Compile Include="Common\Securities\Forex\ForexTransactionModelTests.cs" />
     <Compile Include="Common\Securities\SecurityTransactionModelTests.cs" />
+    <Compile Include="Common\SeriesTests.cs" />
     <Compile Include="Common\Util\ObjectActivatorTests.cs" />
     <Compile Include="Common\Util\VersionHelperTests.cs" />
+    <Compile Include="Common\Util\WhoCalledMeTests.cs" />
     <Compile Include="Engine\FactorFileTests.cs" />
     <Compile Include="Indicators\OnBalanceVolumeTest.cs" />
     <Compile Include="Indicators\WilliamsPercentRTests.cs" />

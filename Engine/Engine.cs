@@ -322,7 +322,7 @@ namespace QuantConnect.Lean.Engine
                         try
                         {
                             // Execute the Algorithm Code:
-                            var complete = Isolator.ExecuteWithTimeLimit(SetupHandler.MaximumRuntime, () =>
+                            var complete = Isolator.ExecuteWithTimeLimit(SetupHandler.MaximumRuntime, AlgorithmManager.TimeLoopWithinLimits, () =>
                             {
                                 try
                                 {
@@ -335,7 +335,7 @@ namespace QuantConnect.Lean.Engine
                                 catch (Exception err)
                                 {
                                     //Debugging at this level is difficult, stack trace needed.
-                                    Log.Error("Engine.Run(): Error in Algo Manager: " + err.Message + " ST >> " + err.StackTrace);
+                                    Log.Error("Engine.Run", err);
                                 }
 
                                 Log.Trace("Engine.Run(): Exiting Algorithm Manager");
@@ -400,7 +400,7 @@ namespace QuantConnect.Lean.Engine
                                     var profitLoss =
                                         new SortedDictionary<DateTime, decimal>(algorithm.Transactions.TransactionRecord);
                                     statistics = Statistics.Statistics.Generate(equity, profitLoss, performance,
-                                        SetupHandler.StartingPortfolioValue, 252);
+                                        SetupHandler.StartingPortfolioValue, algorithm.Portfolio.TotalFees, 252);
                                 }
                             }
                             catch (Exception err)
@@ -511,7 +511,7 @@ namespace QuantConnect.Lean.Engine
                 //Live Trading Data Source:
                 case DataFeedEndpoint.LiveTrading:
                     var ds = Composer.Instance.GetExportedValueByTypeName<IDataQueueHandler>(Config.Get("data-queue-handler", "LiveDataQueue"));
-                    df = new PaperTradingDataFeed(algorithm, ds, (LiveNodePacket)job);
+                    df = new LiveTradingDataFeed(algorithm, (LiveNodePacket)job, ds);
                     Log.Trace("Engine.GetDataFeedHandler(): Selected LiveTrading Datafeed");
                     break;
             }
