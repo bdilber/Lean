@@ -21,9 +21,9 @@ using QuantConnect.Indicators;
 
 namespace QuantConnect
 {
-    /*
-    *   QuantConnect University: Indicator Suite Example:
-    */
+    /// <summary>
+    /// QuantConnect University: Indicator Suite Example.
+    /// </summary>
     public class IndicatorSuiteAlgorithm : QCAlgorithm
     {
         string _symbol = "SPY";
@@ -40,7 +40,9 @@ namespace QuantConnect
 
         decimal _price;
 
-        //Initialize the data and resolution you require for your strategy:
+        /// <summary>
+        /// Initialize the data and resolution you require for your strategy
+        /// </summary>
         public override void Initialize()
         {
             //Initialize
@@ -103,11 +105,18 @@ namespace QuantConnect
             _maxCustom = MAX(_customSymbol, 14, Resolution.Daily);
         }
 
-        //Custom data event handler:
+        /// <summary>
+        /// Custom data event handler:
+        /// </summary>
+        /// <param name="data">Bitcoin - dictionary of TradeBarlike Bars of Bitcoin Data</param>
         public void OnData(Bitcoin data)
-        { //
+        {
         }
 
+        /// <summary>
+        /// OnData event is the primary entry point for your algorithm. Each new data point will be pumped in here.
+        /// </summary>
+        /// <param name="data">TradeBars IDictionary object with your stock data</param>
         public void OnData(TradeBars data)
         {
             if (!_indicators.BB.IsReady || !_indicators.RSI.IsReady) return;
@@ -126,7 +135,9 @@ namespace QuantConnect
             }
         }
 
-        // Fire plotting events once per day:
+        /// <summary>
+        /// Fire plotting events once per day.
+        /// </summary>
         public override void OnEndOfDay()
         {
             if (!_indicators.BB.IsReady) return;

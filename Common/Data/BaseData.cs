@@ -13,10 +13,6 @@
  * limitations under the License.
 */
 
-/**********************************************************
-* USING NAMESPACES
-**********************************************************/
-
 using System;
 using QuantConnect.Util;
 
@@ -212,11 +208,13 @@ namespace QuantConnect.Data
         {
             return ObjectActivator.Clone(this) as BaseData;
         }
-
+        /// <summary>
+        /// Formats a string with the symbol and value.
+        /// </summary>
+        /// <returns>string - a string formatted as SPY: 167.753</returns>
         public override string ToString()
         {
             return string.Format("{0}: {1}", Symbol, Value.ToString("C"));
         }
-    } // End Base Data Class
-
-} // End QC Namespace
+    }
+}

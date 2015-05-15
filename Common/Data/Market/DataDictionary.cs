@@ -12,13 +12,20 @@ namespace QuantConnect.Data.Market
         // storage for the data
         private readonly IDictionary<string, T> _data = new Dictionary<string, T>();
 
+       /// <summary>
+       /// Initializes a new instance of the <see cref="QuantConnect.Data.Market.DataDictionary{T}"/> class.
+       /// </summary>
         public DataDictionary()
         {
         }
 
-        public DataDictionary(DateTime frontier)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="QuantConnect.Data.Market.DataDictionary{T}"/> class.
+        /// </summary>
+        /// <param name="time">The time this data was emitted.</param>
+        public DataDictionary(DateTime time)
         {
-            Time = frontier;
+            Time = time;
         }
 
         /// <summary>
