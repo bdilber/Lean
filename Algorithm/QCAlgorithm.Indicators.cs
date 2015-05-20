@@ -412,15 +412,60 @@ namespace QuantConnect.Algorithm
         /// </summary>
         /// <param name="symbol">The symbol whose On Balance Volume we seek</param>
         /// <param name="resolution">The resolution.</param>
-        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value).</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
         /// <returns>The On Balance Volume indicator for the requested symbol.</returns>
-        public OnBalanceVolume OnBalanceVolume(string symbol, Resolution? resolution = null,
-            Func<BaseData, TradeBar> selector = null)
+        public OnBalanceVolume OBV(string symbol, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
         {
-            string name = CreateIndicatorName(symbol, "OBV", resolution);
+            var name = CreateIndicatorName(symbol, "OBV", resolution);
             var onBalanceVolume = new OnBalanceVolume(name);
-            RegisterIndicator(symbol, onBalanceVolume, resolution);
+            RegisterIndicator(symbol, onBalanceVolume, resolution, selector);
             return onBalanceVolume;
+        }
+
+        /// <summary>
+        /// Creates a new Average Directional Index indicator. 
+        /// The indicator will be automatically updated on the given resolution.
+        /// </summary>
+        /// <param name="symbol">The symbol whose Average Directional Index we seek</param>
+        /// <param name="resolution">The resolution.</param> 
+        /// <param name="period">The period over which to compute the Average Directional Index</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to casting the input value to a TradeBar</param>
+        /// <returns>The Average Directional Index indicator for the requested symbol.</returns>
+        public AverageDirectionalIndex ADX(string symbol, int period, Resolution? resolution = null, Func<BaseData, TradeBar> selector = null)
+        {
+            var name = CreateIndicatorName(symbol, "ADX", resolution);
+            var averageDirectionalIndex = new AverageDirectionalIndex(name, period);
+            RegisterIndicator(symbol, averageDirectionalIndex, resolution, selector);
+            return averageDirectionalIndex;
+        }
+
+        /// <summary>
+        /// Creates a new Stochastic indicator.
+        /// </summary>
+        /// <param name="symbol">The symbol whose stochastic we seek</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="period">The period of the stochastic. Normally 14</param>
+        /// <param name="kPeriod">The sum period of the stochastic. Normally 14</param>
+        /// <param name="dPeriod">The sum period of the stochastic. Normally 3</param>
+        /// <returns>Stochastic indicator for the requested symbol.</returns>
+        public Stochastic STO(string symbol, int period, int kPeriod, int dPeriod, Resolution? resolution = null)
+        {
+            string name = CreateIndicatorName(symbol, "STO", resolution);
+            var stoch = new Stochastic(name, period, kPeriod, dPeriod);
+            RegisterIndicator(symbol, stoch, resolution);
+            return stoch;
+        }
+
+        /// <summary>
+        /// Overload short hand to create a new Stochastic indicator; defaulting to the 3 period for dStoch
+        /// </summary>
+        /// <param name="symbol">The symbol whose stochastic we seek</param>
+        /// <param name="resolution">The resolution.</param>
+        /// <param name="period">The period of the stochastic. Normally 14</param>
+        /// <returns>Stochastic indicator for the requested symbol.</returns>
+        public Stochastic STO(string symbol, int period, Resolution? resolution = null)
+        {
+            return STO(symbol, period, period, 3, resolution);
         }
 
         /// <summary>
