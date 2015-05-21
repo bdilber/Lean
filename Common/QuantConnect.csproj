@@ -141,6 +141,15 @@
     <Compile Include="Securities\Equity\EquityPortfolioModel.cs" />
     <Compile Include="Securities\Forex\ForexMarginModel.cs" />
     <Compile Include="Securities\Forex\ForexPortfolioModel.cs" />
+    <Compile Include="Securities\Futures\Futures.cs" />
+    <Compile Include="Securities\Futures\FuturesCache.cs" />
+    <Compile Include="Securities\Futures\FuturesContractSpecs.cs" />
+    <Compile Include="Securities\Futures\FuturesDataFilter.cs" />
+    <Compile Include="Securities\Futures\FuturesExchange.cs" />
+    <Compile Include="Securities\Futures\FuturesHolding.cs" />
+    <Compile Include="Securities\Futures\FuturesMarginModel.cs" />
+    <Compile Include="Securities\Futures\FuturesPortfolioModel.cs" />
+    <Compile Include="Securities\Futures\FuturesTransactionModel.cs" />
     <Compile Include="Securities\ISecurityMarginModel.cs" />
     <Compile Include="Securities\IOrderIDMapping.cs" />
     <Compile Include="Securities\ISecurityPortfolioModel.cs" />
