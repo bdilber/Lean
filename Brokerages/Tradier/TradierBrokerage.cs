@@ -888,6 +888,11 @@ namespace QuantConnect.Brokerages.Tradier
                 }
                 else
                 {
+                    // let the world know what we're doing
+                    OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "OneOrderPerSymbol",
+                        "The TradierBrokerage plugin currently only supports one outstanding order per symbol. Canceled old order: " + qcOrder.Id)
+                        );
+
                     // cancel the open order and clear out any contingents
                     ContingentOrderQueue contingent;
                     _contingentOrdersByQCOrderID.TryRemove(qcOrder.Id, out contingent);
@@ -896,6 +901,25 @@ namespace QuantConnect.Brokerages.Tradier
                     // with this new order
                     CancelOrder(qcOrder);
                 }
+            }
+
+
+            // tradier supports market on open by allowing placement of market orders after hours
+            // however, tradier does not support market on close orders, so we need to simulate it
+            // we'll place the market order at 3:59:45 PM, this allows 15 seconds for process and fill
+            if (order.Type == OrderType.MarketOnClose && DateTime.Now < DateTime.Today.Add(new TimeSpan(12+3, 59, 40))) // stop this behavior at 3:59:40
+            {
+                // just recall this PlaceOrder function so it can go through the normal path
+                var t = new Timer(state => PlaceOrder(order));
+
+                // Figure how much time until 3:59:45
+                var now = DateTime.Now;
+                var placeOrderTime = now.Date.Add(new TimeSpan(12+3, 59, 45));
+
+                // set timer for delta between now and when we want it to execute
+                int milliseconds = (int)((placeOrderTime - now).TotalMilliseconds);
+                t.Change(milliseconds, Timeout.Infinite);
+                // even though 't' goes out of scope here, the internal scheduler (TimerQueue) maintains a reference
             }
 
             var holdingQuantity = _holdingsProvider.GetHoldingsQuantity(order.Symbol);
@@ -1055,21 +1079,6 @@ namespace QuantConnect.Brokerages.Tradier
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Determines whether or not this brokerage can process the specified order.
-        /// </summary>
-        /// <param name="order">The order to check</param>
-        /// <returns>True if this brokerage implementation can process the specified order, false otherwise</returns>
-        public override bool CanProcessOrder(Order order)
-        {
-            // we want to send users a message letting them know that the order won't hit the exchange until market open
-            if (!Exchange.DateTimeIsOpen(DateTime.Now))
-            {
-                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "ExtendedMarket", "Tradier does not support extended market hours trading.  Your order will be processed at market open."));
-            }
-            return order.SecurityType == SecurityType.Equity;
         }
 
         /// <summary>
@@ -1410,6 +1419,8 @@ namespace QuantConnect.Brokerages.Tradier
             switch (type)
             {
                 case OrderType.Market:
+                case OrderType.MarketOnOpen:
+                case OrderType.MarketOnClose:
                     return TradierOrderType.Market;
 
                 case OrderType.Limit:

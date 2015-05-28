@@ -229,17 +229,6 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         }
 
         /// <summary>
-        /// Determines whether or not this brokerage can process the specified order.
-        /// </summary>
-        /// <param name="order">The order to check</param>
-        /// <returns>True if this brokerage implementation can process the specified order, false otherwise</returns>
-        public override bool CanProcessOrder(Order order)
-        {
-            // we can't process custom data
-            return order.SecurityType != SecurityType.Base;
-        }
-
-        /// <summary>
         /// Gets all open orders on the account
         /// </summary>
         /// <returns>The open orders returned from IB</returns>
@@ -828,6 +817,11 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 Rule80A = _agentDescription
             };
 
+            if (order.Type == OrderType.MarketOnOpen)
+            {
+                ibOrder.Tif = IB.TimeInForce.MarketOnOpen;
+            }
+
             var limitOrder = order as LimitOrder;
             var stopMarketOrder = order as StopMarketOrder;
             if (limitOrder != null)
@@ -855,7 +849,8 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
 
             Order order;
             var mappedSymbol = MapSymbol(contract);
-            var orderType = ConvertOrderType(ibOrder.OrderType);
+            var securityType = ConvertSecurityType(contract.SecurityType);
+            var orderType = ConvertOrderType(ibOrder);
             switch (orderType)
             {
                 case OrderType.Market:
@@ -864,6 +859,22 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                         new DateTime() // not sure how to get this data
                         );
                     break;
+
+                case OrderType.MarketOnOpen:
+                    order = new MarketOnOpenOrder(mappedSymbol, 
+                        securityType, 
+                        ibOrder.TotalQuantity,
+                        new DateTime());
+                    break;
+
+                case OrderType.MarketOnClose:
+                    order = new MarketOnCloseOrder(mappedSymbol,
+                        securityType,
+                        ibOrder.TotalQuantity,
+                        new DateTime()
+                        );
+                    break;
+
                 case OrderType.Limit:
                     order = new LimitOrder(mappedSymbol,
                         ibOrder.TotalQuantity,
@@ -871,6 +882,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                         new DateTime()
                         );
                     break;
+
                 case OrderType.StopMarket:
                     order = new StopMarketOrder(mappedSymbol,
                         ibOrder.TotalQuantity,
@@ -878,6 +890,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                         new DateTime()
                         );
                     break;
+
                 case OrderType.StopLimit:
                     order = new StopLimitOrder(mappedSymbol,
                         ibOrder.TotalQuantity,
@@ -886,6 +899,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                         new DateTime()
                         );
                     break;
+
                 default:
                     throw new InvalidEnumArgumentException("orderType", (int) orderType, typeof (OrderType));
             }
@@ -943,10 +957,12 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         {
             switch (type)
             {
-                case OrderType.Market:      return IB.OrderType.Market;
-                case OrderType.Limit:       return IB.OrderType.Limit;
-                case OrderType.StopMarket:  return IB.OrderType.Stop;
-                case OrderType.StopLimit:   return IB.OrderType.StopLimit;
+                case OrderType.Market:          return IB.OrderType.Market;
+                case OrderType.Limit:           return IB.OrderType.Limit;
+                case OrderType.StopMarket:      return IB.OrderType.Stop;
+                case OrderType.StopLimit:       return IB.OrderType.StopLimit;
+                case OrderType.MarketOnOpen:    return IB.OrderType.Market;
+                case OrderType.MarketOnClose:   return IB.OrderType.MarketOnClose;
                 default:
                     throw new InvalidEnumArgumentException("type", (int)type, typeof(OrderType));
             }
@@ -955,16 +971,24 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
         /// <summary>
         /// Maps OrderType enum
         /// </summary>
-        private OrderType ConvertOrderType(IB.OrderType type)
+        private OrderType ConvertOrderType(IB.Order order)
         {
-            switch (type)
+            switch (order.OrderType)
             {
-                case IB.OrderType.Market:       return OrderType.Market;
-                case IB.OrderType.Limit:        return OrderType.Limit;
-                case IB.OrderType.Stop:         return OrderType.StopMarket;
-                case IB.OrderType.StopLimit:    return OrderType.StopLimit;
+                case IB.OrderType.Limit:            return OrderType.Limit;
+                case IB.OrderType.Stop:             return OrderType.StopMarket;
+                case IB.OrderType.StopLimit:        return OrderType.StopLimit;
+                case IB.OrderType.MarketOnClose:    return OrderType.MarketOnClose;
+
+                case IB.OrderType.Market:
+                    if (order.Tif == IB.TimeInForce.MarketOnOpen)
+                    {
+                        return OrderType.MarketOnOpen;
+                    }
+                    return OrderType.Market;
+
                 default:
-                    throw new InvalidEnumArgumentException("type", (int)type, typeof(OrderType));
+                    throw new InvalidEnumArgumentException("order.OrderType", (int)order.OrderType, typeof(OrderType));
             }
         }
 

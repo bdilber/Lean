@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using QuantConnect.Brokerages;
 using QuantConnect.Data;
 using QuantConnect.Notifications;
 using QuantConnect.Orders;
@@ -73,6 +74,11 @@ namespace QuantConnect.Interfaces
             get;
             set;
         }
+
+        /// <summary>
+        /// Gets the brokerage model used to emulate a real brokerage
+        /// </summary>
+        IBrokerageModel BrokerageModel { get; }
 
         /// <summary>
         /// Notification manager for storing and processing live event messages

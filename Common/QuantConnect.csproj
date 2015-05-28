@@ -111,6 +111,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Brokerages\BrokerageName.cs" />
+    <Compile Include="Brokerages\DefaultBrokerageModel.cs" />
+    <Compile Include="Brokerages\IBrokerageModel.cs" />
+    <Compile Include="Brokerages\InteractiveBrokersBrokerageModel.cs" />
+    <Compile Include="Brokerages\TradierBrokerageModel.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Data\Consolidators\BaseDataConsolidator.cs" />
     <Compile Include="Data\Consolidators\DynamicDataConsolidator.cs" />
@@ -127,6 +132,8 @@
     <Compile Include="Data\Market\Splits.cs" />
     <Compile Include="Notifications\Notification.cs" />
     <Compile Include="Notifications\NotificationManager.cs" />
+    <Compile Include="Orders\MarketOnCloseOrder.cs" />
+    <Compile Include="Orders\MarketOnOpenOrder.cs" />
     <Compile Include="Orders\StopLimitOrder.cs" />
     <Compile Include="Orders\StopMarketOrder.cs" />
     <Compile Include="Orders\LimitOrder.cs" />

@@ -169,14 +169,6 @@ namespace QuantConnect.Brokerages.Backtesting
         }
 
         /// <summary>
-        /// In backtesting we can process all orders, so this implementation always returns true.
-        /// </summary>
-        public override bool CanProcessOrder(Order order)
-        {
-            return true;
-        }
-
-        /// <summary>
         /// Scans all the outstanding orders and applies the algorithm model fills to generate the order events
         /// </summary>
         public void Scan()
@@ -204,6 +196,14 @@ namespace QuantConnect.Brokerages.Backtesting
             foreach (var kvp in orders)
             {
                 var order = kvp.Value;
+
+                var security = _algorithm.Securities[order.Symbol];
+
+                // check if we would actually be able to fill this
+                if (!_algorithm.BrokerageModel.CanExecuteOrder(security, order))
+                {
+                    continue;
+                }
                 
                 // verify sure we have enough cash to perform the fill
                 var sufficientBuyingPower = _algorithm.Transactions.GetSufficientCapitalForOrder(_algorithm.Portfolio, order);
@@ -215,7 +215,6 @@ namespace QuantConnect.Brokerages.Backtesting
                 if (sufficientBuyingPower)
                 {
                     //Model:
-                    var security = _algorithm.Securities[order.Symbol];
                     var model = security.TransactionModel;
 
                     //Based on the order type: refresh its model to get fill price and quantity
@@ -226,14 +225,25 @@ namespace QuantConnect.Brokerages.Backtesting
                             case OrderType.Limit:
                                 fill = model.LimitFill(security, order as LimitOrder);
                                 break;
+
                             case OrderType.StopMarket:
                                 fill = model.StopMarketFill(security, order as StopMarketOrder);
                                 break;
+
                             case OrderType.Market:
                                 fill = model.MarketFill(security, order as MarketOrder);
                                 break;
+
                             case OrderType.StopLimit:
                                 fill = model.StopLimitFill(security, order as StopLimitOrder);
+                                break;
+
+                            case OrderType.MarketOnOpen:
+                                fill = model.MarketOnOpenFill(security, order as MarketOnOpenOrder);
+                                break;
+
+                            case OrderType.MarketOnClose:
+                                fill = model.MarketOnCloseFill(security, order as MarketOnCloseOrder);
                                 break;
                         }
                     }

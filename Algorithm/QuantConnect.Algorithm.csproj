@@ -78,10 +78,12 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Examples\BenchmarkAlgorithm.cs" />
+    <Compile Include="Examples\BrokerageModelAlgorithm.cs" />
     <Compile Include="Examples\BubbleAlgorithm.cs" />
     <Compile Include="Examples\DividendAlgorithm.cs" />
     <Compile Include="Examples\IndicatorSuiteAlgorithm.cs" />
     <Compile Include="Examples\MarginCallEventsAlgorithm.cs" />
+    <Compile Include="Examples\MarketOnOpenOnCloseAlgorithm.cs" />
     <Compile Include="Examples\MultipleSymbolConsolidationAlgorithm.cs" />
     <Compile Include="Examples\QuandlImporterAlgorithm.cs" />
     <Compile Include="Examples\BasicTemplateAlgorithm.cs" />
