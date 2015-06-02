@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using QuantConnect.Data;
 using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Logging;
@@ -47,8 +48,8 @@ namespace QuantConnect.Lean.Engine
         /// <summary>
         /// The frontier time of the data stream
         /// </summary>
-        public static DateTime AlorithmTime { get; private set; }
-        
+        public static DateTime AlgorithmTime { get; private set; }
+
         /******************************************************** 
         * CLASS METHODS
         *********************************************************/
@@ -62,10 +63,10 @@ namespace QuantConnect.Lean.Engine
         public static IEnumerable<Dictionary<int, List<BaseData>>> GetData(IDataFeed feed, DateTime frontierOrigin)
         {
             //Initialize:
-            long earlyBirdTicks = 0;
+            long earlyBirdTicks;
             _subscriptions = feed.Subscriptions.Count;
-            AlorithmTime = frontierOrigin;
-            long algorithmTime = AlorithmTime.Ticks;
+            AlgorithmTime = frontierOrigin;
+            long algorithmTime = AlgorithmTime.Ticks;
             var frontier = frontierOrigin;
             var nextEmitTime = DateTime.MinValue;
             var periods = feed.Subscriptions.Select(x => x.Resolution.ToTimeSpan()).ToArray();
@@ -83,7 +84,7 @@ namespace QuantConnect.Lean.Engine
             while (!feed.EndOfBridges)
             {
                 //Reset items which are not fill forward:
-                earlyBirdTicks = 0; 
+                earlyBirdTicks = 0;
                 var newData = new Dictionary<int, List<BaseData>>();
 
                 // spin wait until the feed catches up to our frontier
@@ -93,7 +94,7 @@ namespace QuantConnect.Lean.Engine
                 {
                     //If there's data on the bridge, check to see if it's time to pull it off, if it's in the future
                     // we'll record the time as 'earlyBirdTicks' so we can fast forward the frontier time
-                    while (feed.Bridge[i].Count > 0)
+                    while (!feed.Bridge[i].IsEmpty)
                     {
                         //Look at first item on list, leave it there until time passes this item.
                         List<BaseData> result;
@@ -113,6 +114,11 @@ namespace QuantConnect.Lean.Engine
                             break;
                         }
 
+                        if (earlyBirdTicks == 0)
+                        {
+                            earlyBirdTicks = result[0].EndTime.Ticks;
+                        }
+
                         //Pull a grouped time list out of the bridge
                         List<BaseData> dataPoints;
                         if (feed.Bridge[i].TryDequeue(out dataPoints))
@@ -121,20 +127,31 @@ namespace QuantConnect.Lean.Engine
                             // this is a temporary fix, long term fill forward logic should be moved into this class
                             foreach (var point in dataPoints)
                             {
+                                if (algorithmTime < point.EndTime.Ticks)
+                                {
+                                    // set this to most advanced end point in time, pre rounding
+                                    // min  10:02  10:02:01(FF) 10:02:01.01(FF)
+                                    // sec  10:02  10:02:01     10:02:01.01(FF)
+                                    // tic  10:02  10:02:01     10:02:01.01
+                                    // the algorithm time should always be the 'frontier' the furthest
+                                    // time within this data slice
+                                    algorithmTime = point.EndTime.Ticks;
+                                }
                                 if (point.IsFillForward)
                                 {
                                     point.Time = point.Time.RoundDown(periods[i]);
                                 }
-                                if (algorithmTime < point.EndTime.Ticks)
-                                {
-                                    // set this to least advanced end point in time, pre rounding
-                                    algorithmTime = point.EndTime.Ticks;
-                                }
                             }
                             // add the list to the collection to be yielded
-                            newData[i] = dataPoints;
+                            List<BaseData> dp;
+                            if (!newData.TryGetValue(i, out dp))
+                            {
+                                dp = new List<BaseData>();
+                                newData[i] = dp;
+                            }
+                            dp.AddRange(dataPoints);
                         }
-                        else 
+                        else
                         {
                             //Should never fail:
                             Log.Error("DataStream.GetData(): Failed to dequeue bridge item");
@@ -144,10 +161,10 @@ namespace QuantConnect.Lean.Engine
 
                 if (newData.Count > 0)
                 {
-                    AlorithmTime = new DateTime(algorithmTime);
+                    AlgorithmTime = new DateTime(algorithmTime);
                     yield return newData;
                 }
-                
+
                 //Update the frontier and start again.
                 if (earlyBirdTicks > 0)
                 {
@@ -163,7 +180,7 @@ namespace QuantConnect.Lean.Engine
                 //Allow loop pass through emits every second to allow event handling (liquidate/stop/ect...)
                 if (Engine.LiveMode && DateTime.Now > nextEmitTime)
                 {
-                    AlorithmTime = DateTime.Now.RoundDown(periods.Min());
+                    AlgorithmTime = DateTime.Now.RoundDown(periods.Min());
                     nextEmitTime = DateTime.Now + TimeSpan.FromSeconds(1);
                     yield return new Dictionary<int, List<BaseData>>();
                 }
@@ -220,7 +237,7 @@ namespace QuantConnect.Lean.Engine
             for (var i = 0; i < _subscriptions; i++)
             {
                 if (feed.EndOfBridge[i]) continue;
-                if (feed.Bridge[i].Count == 0)
+                if (feed.Bridge[i].IsEmpty)
                 {
                     return false;
                 }
@@ -233,7 +250,7 @@ namespace QuantConnect.Lean.Engine
         /// </summary>
         public static void ResetFrontier()
         {
-            AlorithmTime = new DateTime();
+            AlgorithmTime = new DateTime();
         }
     }
 }
