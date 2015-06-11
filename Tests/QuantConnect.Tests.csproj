@@ -64,6 +64,7 @@
     <Compile Include="AlgorithmRunner.cs" />
     <Compile Include="Brokerages\BrokerageTests.cs" />
     <Compile Include="Brokerages\HoldingsProvider.cs" />
+    <Compile Include="Brokerages\InteractiveBrokers\InteractiveBrokersBrokerageDataQueueHandlerTest.cs" />
     <Compile Include="Brokerages\InteractiveBrokers\InteractiveBrokersOrderTests.cs" />
     <Compile Include="Brokerages\LimitOrderTestParameters.cs" />
     <Compile Include="Brokerages\MarketOrderTestParameters.cs" />
@@ -72,6 +73,7 @@
     <Compile Include="Brokerages\StopLimitOrderTestParameters.cs" />
     <Compile Include="Brokerages\StopMarketOrderTestParameters.cs" />
     <Compile Include="Brokerages\Tradier\TradierBrokerageTests.cs" />
+    <Compile Include="Common\Data\Market\TickTests.cs" />
     <Compile Include="Common\Securities\CashBookTests.cs" />
     <Compile Include="Common\Securities\CashTests.cs" />
     <Compile Include="Common\Securities\Equity\EquityTransactionModelTests.cs" />
@@ -83,6 +85,7 @@
     <Compile Include="Common\Util\ObjectToListJsonConverterTests.cs" />
     <Compile Include="Common\Util\VersionHelperTests.cs" />
     <Compile Include="Common\Util\WhoCalledMeTests.cs" />
+    <Compile Include="Compression\CompressionTests.cs" />
     <Compile Include="Engine\FactorFileTests.cs" />
     <Compile Include="Indicators\AverageDirectionalIndexTests.cs" />
     <Compile Include="Indicators\DonchianChannelTest.cs" />

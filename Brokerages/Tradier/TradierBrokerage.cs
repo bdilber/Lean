@@ -203,6 +203,7 @@ namespace QuantConnect.Brokerages.Tradier
                 //Send the request:
                 var raw = client.Execute(request);
                 _previousRequestRaw = raw.Content;
+                //Log.Trace("TradierBrokerage.Execute: " + raw.Content);
 
                 try
                 {
@@ -215,10 +216,11 @@ namespace QuantConnect.Brokerages.Tradier
                         response = JsonConvert.DeserializeObject<T>(raw.Content);
                     }
                 }
-                catch
+                catch(Exception err)
                 {
                     // tradier sometimes sends back poorly formed messages, response will be null
                     // and we'll extract from it below
+                    Log.Error(err, "TradierBrokerage.Execute(): Poorly formed message: " + err.Message + " Content:" + raw.Content);
                 }
 
                 if (response == null)
@@ -256,6 +258,11 @@ namespace QuantConnect.Brokerages.Tradier
                     const string message = "Error retrieving response.  Check inner details for more info.";
                     throw new ApplicationException(message, raw.ErrorException);
                 }
+            }
+
+            if (response == null)
+            {
+                Log.Error("TradierBrokerage.Execute(): NULL Response: Raw Response: " + _previousRequestRaw);
             }
 
             return response;
@@ -317,7 +324,7 @@ namespace QuantConnect.Brokerages.Tradier
             if (!success)
             {
                 // if we can't refresh our tokens then we must stop the algorithm
-                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "RefreshSession", "Failed to refresh access token."));
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "RefreshSession", "Failed to refresh access token: " + raw));
             }
 
             return success;
@@ -349,6 +356,7 @@ namespace QuantConnect.Brokerages.Tradier
             var request = new RestRequest("accounts/{accountId}/balances", Method.GET);
             request.AddParameter("accountId", accountId, ParameterType.UrlSegment);
             var balContainer = Execute<TradierBalance>(request, TradierApiRequestType.Standard);
+            Log.Trace("TradierBrokerage.GetBalanceDetails(): Bal Container: " + JsonConvert.SerializeObject(balContainer));
             return balContainer.Balances;
         }
 

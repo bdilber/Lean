@@ -39,12 +39,12 @@ namespace QuantConnect.Lean.Engine.Results
         private DateTime _lastSampledTimed;
         private IAlgorithm _algorithm;
         private readonly object _chartLock;
-        private readonly IConsoleStatusHandler _algorithmNode;
+        private IConsoleStatusHandler _algorithmNode;
 
         //Sampling Periods:
         private DateTime _nextSample;
-        private readonly TimeSpan _resamplePeriod;
-        private readonly TimeSpan _notificationPeriod;
+        private TimeSpan _resamplePeriod;
+        private TimeSpan _notificationPeriod;
 
         public Dictionary<string, string> FinalStatistics { get; private set; } 
 
@@ -125,21 +125,30 @@ namespace QuantConnect.Lean.Engine.Results
         /// <summary>
         /// Console result handler constructor.
         /// </summary>
-        /// <remarks>Setup the default sampling and notification periods based on the backtest length.</remarks>
-        public ConsoleResultHandler(AlgorithmNodePacket packet) 
+        public ConsoleResultHandler() 
         {
-            FinalStatistics = new Dictionary<string, string>();
-            Log.Trace("Launching Console Result Handler: QuantConnect v2.0");
             Messages = new ConcurrentQueue<Packet>();
             Charts = new ConcurrentDictionary<string, Chart>();
+            FinalStatistics = new Dictionary<string, string>();
             _chartLock = new Object();
             _isActive = true;
+            _notificationPeriod = TimeSpan.FromSeconds(5);
+        }
 
+        /******************************************************** 
+        * PUBLIC METHODS
+        *********************************************************/
+        /// <summary>
+        /// Initialize the result handler with this result packet.
+        /// </summary>
+        /// <param name="packet">Algorithm job packet for this result handler</param>
+        public void Initialize(AlgorithmNodePacket packet)
+        {
             // we expect one of two types here, the backtest node packet or the live node packet
-            if (packet is BacktestNodePacket)
+            var job = packet as BacktestNodePacket;
+            if (job != null)
             {
-                var backtest = packet as BacktestNodePacket;
-                _algorithmNode = new BacktestConsoleStatusHandler(backtest);
+                _algorithmNode = new BacktestConsoleStatusHandler(job);
             }
             else
             {
@@ -150,16 +159,9 @@ namespace QuantConnect.Lean.Engine.Results
                 }
                 _algorithmNode = new LiveConsoleStatusHandler(live);
             }
-
             _resamplePeriod = _algorithmNode.ComputeSampleEquityPeriod();
-
-            //Notification Period for pushes:
-            _notificationPeriod = TimeSpan.FromSeconds(5);
         }
-
-        /******************************************************** 
-        * PUBLIC METHODS
-        *********************************************************/
+        
         /// <summary>
         /// Entry point for console result handler thread.
         /// </summary>

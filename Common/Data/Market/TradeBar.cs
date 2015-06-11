@@ -130,12 +130,12 @@ namespace QuantConnect.Data.Market
         {
             try
             {
-                Period = config.Resolution.ToTimeSpan();
-
                 //Parse the data into a trade bar:
                 var csv = line.Split(',');
-                const decimal scaleFactor = 10000m;
+                var scaleFactor = 10000m;
+                
                 Symbol = config.Symbol;
+                Period = config.Resolution.ToTimeSpan();
 
                 switch (config.SecurityType)
                 {
@@ -143,17 +143,22 @@ namespace QuantConnect.Data.Market
                     case SecurityType.Equity:
                         if (config.Resolution == Resolution.Daily || config.Resolution == Resolution.Hour)
                         {
-                            // hourly and daily have different time format
+                            // hourly and daily have different time format, and can use slow, robust c# parser.
                             Time = DateTime.ParseExact(csv[0], "yyyyMMdd HH:mm", CultureInfo.InvariantCulture);
+                            Open = config.GetNormalizedPrice(Convert.ToDecimal(csv[1])/scaleFactor);
+                            High = config.GetNormalizedPrice(Convert.ToDecimal(csv[2])/scaleFactor);
+                            Low = config.GetNormalizedPrice(Convert.ToDecimal(csv[3])/scaleFactor);
+                            Close = config.GetNormalizedPrice(Convert.ToDecimal(csv[4])/scaleFactor);
                         }
                         else
                         {
+                            // Using custom "ToDecimal" conversion for speed on high resolution data.
                             Time = baseDate.Date.AddMilliseconds(Convert.ToInt32(csv[0]));
+                            Open = config.GetNormalizedPrice(csv[1].ToDecimal()/scaleFactor);
+                            High = config.GetNormalizedPrice(csv[2].ToDecimal()/scaleFactor);
+                            Low = config.GetNormalizedPrice(csv[3].ToDecimal()/scaleFactor);
+                            Close = config.GetNormalizedPrice(csv[4].ToDecimal()/scaleFactor);
                         }
-                        Open = config.GetNormalizedPrice(csv[1].ToDecimal() / scaleFactor);  //  Convert.ToDecimal(csv[1]) / scaleFactor;
-                        High = config.GetNormalizedPrice(csv[2].ToDecimal() / scaleFactor);  // Using custom "ToDecimal" conversion for speed.
-                        Low = config.GetNormalizedPrice(csv[3].ToDecimal() / scaleFactor);
-                        Close = config.GetNormalizedPrice(csv[4].ToDecimal() / scaleFactor);
                         Volume = Convert.ToInt64(csv[5]);
                         break;
 
@@ -161,20 +166,25 @@ namespace QuantConnect.Data.Market
                     case SecurityType.Forex:
                         if (config.Resolution == Resolution.Daily || config.Resolution == Resolution.Hour)
                         {
-                            // hourly and daily have different time format
+                            // hourly and daily have different time format, and can use slow, robust c# parser.
                             Time = DateTime.ParseExact(csv[0], "yyyyMMdd HH:mm", CultureInfo.InvariantCulture);
+                            Open = Convert.ToDecimal(csv[1])/scaleFactor;
+                            High = Convert.ToDecimal(csv[2])/scaleFactor;
+                            Low = Convert.ToDecimal(csv[3])/scaleFactor;
+                            Close = Convert.ToDecimal(csv[4])/scaleFactor;
                         }
                         else
                         {
+                            //Fast decimal conversion
                             Time = DateTime.ParseExact(csv[0], "yyyyMMdd HH:mm:ss.ffff", CultureInfo.InvariantCulture);
+                            Open = csv[1].ToDecimal();
+                            High = csv[2].ToDecimal();
+                            Low = csv[3].ToDecimal();
+                            Close = csv[4].ToDecimal();
                         }
-                        Open = csv[1].ToDecimal();
-                        High = csv[2].ToDecimal();
-                        Low = csv[3].ToDecimal();
-                        Close = csv[4].ToDecimal();
+                        
                         break;
                 }
-                //base.Value = Close;
             }
             catch (Exception err)
             {
