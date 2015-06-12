@@ -69,21 +69,15 @@ namespace QuantConnect.Securities.Futures
         {
             var marketData = asset.GetLastData();
             
-            //Handle contract size for futures contracts
-            var size = 1m;
-            var future = asset as Futures;
-            if (future != null) size = future.ContractSize;
-
-
             if (marketData.DataType == MarketDataType.TradeBar)
             {
-                minimumPrice = ((TradeBar)marketData).Low * size;
-                maximumPrice = ((TradeBar)marketData).High * size;
+                minimumPrice = ((TradeBar)marketData).Low;
+                maximumPrice = ((TradeBar)marketData).High;
             }
             else
             {
-                minimumPrice = marketData.Value * size;
-                maximumPrice = marketData.Value * size;
+                minimumPrice = marketData.Value;
+                maximumPrice = marketData.Value;
             }
         }
 
