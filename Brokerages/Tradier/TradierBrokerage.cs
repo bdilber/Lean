@@ -71,13 +71,15 @@ namespace QuantConnect.Brokerages.Tradier
         private readonly IHoldingsProvider _holdingsProvider;
 
         private readonly object _fillLock = new object();
+        private readonly DateTime _initializationDateTime = DateTime.Now;
         private readonly ConcurrentDictionary<long, TradierOrder> _cachedOpenOrdersByTradierOrderID;
         // this is used to block reentrance when doing look ups for orders with IDs we don't have cached
         private readonly HashSet<long> _reentranceGuardByTradierOrderID = new HashSet<long>();
+        private readonly FixedSizeHashQueue<long> _filledTradierOrderIDs = new FixedSizeHashQueue<long>(10000); 
         // this is used to handle the zero crossing case, when the first order is filled we'll submit the next order
         private readonly ConcurrentDictionary<long, ContingentOrderQueue> _contingentOrdersByQCOrderID = new ConcurrentDictionary<long, ContingentOrderQueue>();
         // this is used to block reentrance when handling contingent orders
-        private readonly HashSet<long> _contingentReentranceGuardByQCOrderID = new HashSet<long>(); 
+        private readonly HashSet<long> _contingentReentranceGuardByQCOrderID = new HashSet<long>();
 
         /// <summary>
         /// Event fired when our session has been refreshed/tokens updated
@@ -235,10 +237,11 @@ namespace QuantConnect.Brokerages.Tradier
                         // tradier sometimes sends back poorly formed messages, response will be null
                         // and we'll extract from it below
                     }
-                    if (fault != null)
+                    if (fault != null && fault.Fault != null)
                     {
                         // JSON Errors:
-                        OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "JsonError", fault.Fault.Description));
+                        Log.Error("TradierBrokerage.Execute." + request.Resource + "(): " + fault.Fault.Description);
+                        OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "JsonError", fault.Fault.Description));
                     }
                     else
                     {
@@ -249,7 +252,7 @@ namespace QuantConnect.Brokerages.Tradier
                         }
                         // Text Errors:
                         Log.Error("TradierBrokerage.Execute." + request.Resource + "(): " + raw.Content);
-                        OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, "Unknown", raw.Content));
+                        OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "Unknown", raw.Content));
                     }
                 }
 
@@ -1187,7 +1190,7 @@ namespace QuantConnect.Brokerages.Tradier
         /// </summary>
         private void CheckForFills()
         {
-            // reentrance gaurd
+            // reentrance guard
             if (!Monitor.TryEnter(_fillLock))
             {
                 return;
@@ -1195,7 +1198,14 @@ namespace QuantConnect.Brokerages.Tradier
 
             try
             {
-                var updatedOrders = GetIntradayAndPendingOrders().ToDictionary(x => x.Id);
+                var intradayAndPendingOrders = GetIntradayAndPendingOrders();
+                if (intradayAndPendingOrders == null)
+                {
+                    Log.Error("TradierBrokerage.CheckForFills(): Returned null response!");
+                    return;
+                }
+
+                var updatedOrders = intradayAndPendingOrders.ToDictionary(x => x.Id);
 
                 // loop over our cache of orders looking for changes in status for fill quantities
                 foreach (var cachedOrder in _cachedOpenOrdersByTradierOrderID)
@@ -1235,7 +1245,7 @@ namespace QuantConnect.Brokerages.Tradier
                 }
 
                 // if we get order updates for orders we're unaware of we need to bail, this can corrupt the algorithm state
-                var unknownOrderIDs = updatedOrders.Where(x => !_cachedOpenOrdersByTradierOrderID.ContainsKey(x.Key) && OrderIsOpen(x.Value)).ToList();
+                var unknownOrderIDs = updatedOrders.Where(IsUnknownOrderID).ToList();
                 if (unknownOrderIDs.Count != 0)
                 {
                     var ids = string.Join(", ", unknownOrderIDs.Select(x => x.Key));
@@ -1246,6 +1256,16 @@ namespace QuantConnect.Brokerages.Tradier
             {
                 Monitor.Exit(_fillLock);
             }
+        }
+
+        private bool IsUnknownOrderID(KeyValuePair<long, TradierOrder> x)
+        {
+                // we don't have it in our local cache
+            return !_cachedOpenOrdersByTradierOrderID.ContainsKey(x.Key)
+                // the transaction happened after we initialized, make sure they're in the same time zone
+                && x.Value.TransactionDate.ToUniversalTime() > _initializationDateTime.ToUniversalTime()
+                // we don't have a record of it in our last 10k filled orders
+                && !_filledTradierOrderIDs.Contains(x.Key);
         }
 
         private void ProcessPotentiallyUpdatedOrder(TradierOrder cachedOrder, TradierOrder updatedOrder)
@@ -1322,6 +1342,7 @@ namespace QuantConnect.Brokerages.Tradier
             // remove from open orders since it's now closed
             if (OrderIsClosed(updatedOrder))
             {
+                _filledTradierOrderIDs.Add(updatedOrder.Id);
                 _cachedOpenOrdersByTradierOrderID.TryRemove(updatedOrder.Id, out cachedOrder);
             }
         }
