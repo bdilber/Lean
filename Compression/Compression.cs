@@ -275,30 +275,31 @@ namespace QuantConnect
         }
 
         /// <summary>
-        /// Unzip a local file and return its contents via streamreader.
+        /// Streams a local zip file using a streamreader.
+        /// Important: the caller must call Dispose() on the returned ZipFile instance.
         /// </summary>
         /// <param name="filename">Location of the original zip file</param>
+        /// <param name="zip">The ZipFile instance to be returned to the caller</param>
         /// <returns>Stream reader of the first file contents in the zip file</returns>
-        public static StreamReader Unzip(string filename)
+        public static StreamReader Unzip(string filename, out Ionic.Zip.ZipFile zip)
         {
             StreamReader reader = null;
-            var ms = new MemoryStream();
+            zip = null;
+
             try
             {
                 if (File.Exists(filename))
                 {
                     try
                     {
-                        using (var zip1 = Ionic.Zip.ZipFile.Read(filename))
-                        {
-                            var e = zip1[0];
-                            e.Extract(ms); ms.Position = 0;
-                            reader = new StreamReader(ms);
-                        }
+                        zip = new Ionic.Zip.ZipFile(filename);
+
+                        reader = new StreamReader(zip[0].OpenReader());
                     }
                     catch (Exception err)
                     {
                         Log.Error("QC.Data.Unzip(1): " + err.Message);
+                        if (zip != null) zip.Dispose();
                         if (reader != null) reader.Close();
                     }
                 }

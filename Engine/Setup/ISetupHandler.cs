@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using QuantConnect.Interfaces;
 using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Packets;
@@ -25,6 +26,7 @@ namespace QuantConnect.Lean.Engine.Setup
     /// <summary>
     /// Interface to setup the algorithm. Pass in a raw algorithm, return one with portfolio, cash, etc already preset.
     /// </summary>
+    [InheritedExport(typeof(ISetupHandler))]
     public interface ISetupHandler : IDisposable
     {
         /// <summary>
@@ -81,8 +83,9 @@ namespace QuantConnect.Lean.Engine.Setup
         /// <param name="algorithm">Algorithm instance</param>
         /// <param name="brokerage">New brokerage output instance</param>
         /// <param name="job">Algorithm job task</param>
+        /// <param name="resultHandler"></param>
         /// <returns>True on successfully setting up the algorithm state, or false on error.</returns>
-        bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket job);
+        bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket job, IResultHandler resultHandler);
 
         /// <summary>
         /// Setup the error handler for the brokerage errors.

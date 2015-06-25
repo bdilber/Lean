@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using QuantConnect.Logging;
 
 namespace QuantConnect.Lean.Engine.DataFeeds.Auxiliary
 {
@@ -45,9 +46,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Auxiliary
         /// <summary>
         /// Reads a FactorFile in from the <see cref="Constants.DataFolder"/>.
         /// </summary>
-        public static FactorFile Read(string symbol)
+        public static FactorFile Read(string symbol, string market)
         {
-            return new FactorFile(symbol, FactorFileRow.Read(symbol));
+            return new FactorFile(symbol, FactorFileRow.Read(symbol, market));
         }
 
         /// <summary>
@@ -83,13 +84,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Auxiliary
         /// <summary>
         /// Checks whether or not a symbol has scaling factors
         /// </summary>
-        public static bool HasScalingFactors(string symbol)
+        public static bool HasScalingFactors(string symbol, string market)
         {
             // check for factor files
-            if (File.Exists(Constants.DataFolder + "equity/usa/factor_files/" + symbol.ToLower() + ".csv"))
+            if (File.Exists(Constants.DataFolder + "equity/" + market + "/factor_files/" + symbol.ToLower() + ".csv"))
             {
                 return true;
             }
+            Log.Trace("FactorFile.HasScalingFactors(): Factor file not found: " + symbol);
             return false;
         }
 

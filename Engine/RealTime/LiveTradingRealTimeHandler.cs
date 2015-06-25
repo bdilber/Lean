@@ -37,11 +37,12 @@ namespace QuantConnect.Lean.Engine.RealTime
         private List<RealTimeEvent> _events;
         private Dictionary<SecurityType, MarketToday> _today;
         private IDataFeed _feed;
-        private IResultHandler _results;
         private TimeSpan _endOfDayDelta = TimeSpan.FromMinutes(10);
 
         //Algorithm and Handlers:
         private IAlgorithm _algorithm;
+        private IResultHandler _resultHandler;
+        private IApi _api;
 
         /// <summary>
         /// Current time.
@@ -88,16 +89,16 @@ namespace QuantConnect.Lean.Engine.RealTime
         }
 
         /// <summary>
-        /// Initialize the realtime event handler with all information required for triggering daily events.
+        /// Intializes the real time handler for the specified algorithm and job
         /// </summary>
-        public LiveTradingRealTimeHandler(IAlgorithm algorithm, IDataFeed feed, IResultHandler results) 
+        public void Initialize(IAlgorithm algorithm, AlgorithmNodePacket job, IResultHandler resultHandler, IApi api)
         {
             //Initialize:
             _algorithm = algorithm;
             _events = new List<RealTimeEvent>();
             _today = new Dictionary<SecurityType, MarketToday>();
-            _feed = feed;
-            _results = results;
+            _resultHandler = resultHandler;
+            _api = api;
         }
 
         /// <summary>
@@ -110,9 +111,6 @@ namespace QuantConnect.Lean.Engine.RealTime
             _isActive = true;
             _time = DateTime.Now;
 
-            //Set up the realtime events:
-            SetupEvents(DateTime.Now);
-
             //Continue looping until exit triggered:
             while (!_exitTriggered)
             {
@@ -120,9 +118,6 @@ namespace QuantConnect.Lean.Engine.RealTime
                 var nextSecond = DateTime.Now.RoundUp(TimeSpan.FromSeconds(1));
                 var delay = Convert.ToInt32((nextSecond - DateTime.Now).TotalMilliseconds);
                 Thread.Sleep(delay < 0 ? 1 : delay);
-
-                //Set the current time:
-                SetTime(DateTime.Now);
 
                 //Refresh event processing:
                 ScanEvents();
@@ -211,7 +206,7 @@ namespace QuantConnect.Lean.Engine.RealTime
                         }
                         catch (Exception err)
                         {
-                            Engine.ResultHandler.RuntimeError("Runtime error in OnEndOfDay event: " + err.Message, err.StackTrace);
+                            _resultHandler.RuntimeError("Runtime error in OnEndOfDay event: " + err.Message, err.StackTrace);
                             Log.Error("LiveTradingRealTimeHandler.SetupEvents.Trigger OnEndOfDay(): " + err.Message);
                         }
                     }, true));
@@ -231,7 +226,7 @@ namespace QuantConnect.Lean.Engine.RealTime
                     }
                     catch (Exception err)
                     {
-                        Engine.ResultHandler.RuntimeError("Runtime error in OnEndOfDay event: " + err.Message, err.StackTrace);
+                        _resultHandler.RuntimeError("Runtime error in OnEndOfDay event: " + err.Message, err.StackTrace);
                         Log.Error("LiveTradingRealTimeHandler.SetupEvents.Trigger OnEndOfDay(): " + err.Message);
                     }
                 }, true));
@@ -246,7 +241,7 @@ namespace QuantConnect.Lean.Engine.RealTime
             _today.Clear();
 
             //Setup the Security Open Close Market Hours:
-            foreach (var sub in _feed.Subscriptions)
+            foreach (var sub in _algorithm.SubscriptionManager.Subscriptions)
             {
                 var security = _algorithm.Securities[sub.Symbol];
 
@@ -256,7 +251,7 @@ namespace QuantConnect.Lean.Engine.RealTime
                     //Setup storage
                     _today.Add(security.Type, new MarketToday());
                     //Refresh the market information
-                    _today[security.Type] = Engine.Api.MarketToday(date, security.Type);
+                    _today[security.Type] = _api.MarketToday(date, security.Type);
                     Log.Trace(
                         string.Format(
                             "LiveTradingRealTimeHandler.SetupEvents(): Daily Market Hours Setup for Security Type: {0} Start: {1} Stop: {2}",

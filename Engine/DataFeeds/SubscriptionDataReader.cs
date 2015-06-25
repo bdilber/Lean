@@ -26,6 +26,7 @@ using QuantConnect.Data.Custom;
 using QuantConnect.Data.Market;
 using QuantConnect.Lean.Engine.DataFeeds.Auxiliary;
 using QuantConnect.Lean.Engine.DataFeeds.Transport;
+using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Logging;
 using QuantConnect.Securities;
 using QuantConnect.Util;
@@ -62,7 +63,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// Subscription Securities Access
         private Security _security;
 
-        /// true if we can find a scale factor file for the security of the form: ..\Lean\Data\equity\factor_files\{SYMBOL}.csv
+        /// true if we can find a scale factor file for the security of the form: ..\Lean\Data\equity\market\factor_files\{SYMBOL}.csv
         private bool _hasScaleFactors = false;
 
         // Subscription is for a QC type:
@@ -101,6 +102,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
         // true if we're in live mode, false otherwise
         private readonly bool _isLiveMode;
+        private readonly IResultHandler _resultHandler;
 
         /// <summary>
         /// Last read BaseData object from this type and source
@@ -161,7 +163,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <param name="feed">Feed type enum</param>
         /// <param name="periodStart">Start date for the data request/backtest</param>
         /// <param name="periodFinish">Finish date for the data request/backtest</param>
-        public SubscriptionDataReader(SubscriptionDataConfig config, Security security, DataFeedEndpoint feed, DateTime periodStart, DateTime periodFinish)
+        /// <param name="resultHandler"></param>
+        public SubscriptionDataReader(SubscriptionDataConfig config, Security security, DataFeedEndpoint feed, DateTime periodStart, DateTime periodFinish, IResultHandler resultHandler)
         {
             //Save configuration of data-subscription:
             _config = config;
@@ -181,7 +184,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             _isLiveMode = _feedEndpoint == DataFeedEndpoint.LiveTrading;
 
             // do we have factor tables?
-            _hasScaleFactors = FactorFile.HasScalingFactors(config.Symbol);
+            _hasScaleFactors = FactorFile.HasScalingFactors(config.Symbol, config.Market);
 
             //Save the type of data we'll be getting from the source.
             _feedEndpoint = feed;
@@ -189,9 +192,10 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             //Create the dynamic type-activators:
             _objectActivator = ObjectActivator.GetActivator(config.Type);
 
-            if (_objectActivator == null) 
+            _resultHandler = resultHandler;
+            if (_objectActivator == null)
             {
-                Engine.ResultHandler.ErrorMessage("Custom data type '" + config.Type.Name + "' missing parameterless constructor E.g. public " + config.Type.Name + "() { }");
+                _resultHandler.ErrorMessage("Custom data type '" + config.Type.Name + "' missing parameterless constructor E.g. public " + config.Type.Name + "() { }");
                 _endOfStream = true;
                 return;
             }
@@ -217,8 +221,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             {
                 if (_hasScaleFactors)
                 {
-                    _factorFile = FactorFile.Read(config.Symbol);
-                    _mapFile = MapFile.Read(config.Symbol);
+                    _factorFile = FactorFile.Read(config.Symbol, config.Market);
+                    _mapFile = MapFile.Read(config.Symbol, config.Market);
                 }
             } 
             catch (Exception err) 
@@ -278,7 +282,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     catch (Exception err)
                     {
                         //Log.Debug("SubscriptionDataReader.MoveNext(): Error invoking instance: " + err.Message);
-                        Engine.ResultHandler.RuntimeError("Error invoking " + _config.Symbol + " data reader. Line: " + line + " Error: " + err.Message, err.StackTrace);
+                        _resultHandler.RuntimeError("Error invoking " + _config.Symbol + " data reader. Line: " + line + " Error: " + err.Message, err.StackTrace);
                         _endOfStream = true;
                         continue;
                     }
@@ -300,7 +304,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         catch (Exception err)
                         {
                             Log.Error("SubscriptionDataReader.MoveNext(): Error applying filter: " + err.Message);
-                            Engine.ResultHandler.RuntimeError("Runtime error applying data filter. Assuming filter pass: " + err.Message, err.StackTrace);
+                            _resultHandler.RuntimeError("Runtime error applying data filter. Assuming filter pass: " + err.Message, err.StackTrace);
                         }
 
                         if (instance == null)
@@ -528,11 +532,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
                 if (_reader == null)
                 {
-                    Log.Error("Failed to get StreamReader for data source(" + _source + "), symbol(" + _mappedSymbol + "). Skipping date(" + date.ToShortDateString() + "). Reader is null.");
+                    Log.Error("Failed to get StreamReader for data source(" + _source.Source + "), symbol(" + _mappedSymbol + "). Skipping date(" + date.ToShortDateString() + "). Reader is null.");
                     //Engine.ResultHandler.DebugMessage("We could not find the requested data. This may be an invalid data request, failed download of custom data, or a public holiday. Skipping date (" + date.ToShortDateString() + ").");
                     if (_isDynamicallyLoadedData)
                     {
-                        Engine.ResultHandler.ErrorMessage("We could not fetch the requested data. This may not be valid data, or a failed download of custom data. Skipping source (" + _source + ").");
+                        _resultHandler.ErrorMessage("We could not fetch the requested data. This may not be valid data, or a failed download of custom data. Skipping source (" + _source + ").");
                     }
                     return false;
                 }
@@ -661,6 +665,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             // this provides a fail fast mechanism so we don't need to go into MoveNext via RefreshSource
             if (reader != null && reader.EndOfStream)
             {
+                reader.Close();
+                reader.Dispose();
                 reader = null;
             }
 
@@ -701,7 +707,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 catch (Exception err) 
                 {
                     Log.Error("SubscriptionDataReader.GetSource(): " + err.Message);
-                    Engine.ResultHandler.ErrorMessage("Error getting string source location for custom data source: " + err.Message, err.StackTrace);
+                    _resultHandler.ErrorMessage("Error getting string source location for custom data source: " + err.Message, err.StackTrace);
                 }
             }
 
@@ -718,7 +724,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             {
                 // the local uri doesn't exist, write an error and return null so we we don't try to get data for today
                 Log.Trace("SubscriptionDataReader.GetReader(): Could not find QC Data, skipped: " + source);
-                Engine.ResultHandler.SamplePerformance(_date.Date, 0);
+                _resultHandler.SamplePerformance(_date.Date, 0);
                 return null;
             }
 
@@ -745,8 +751,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             }
             catch (Exception err)
             {
-                Engine.ResultHandler.ErrorMessage("Error downloading custom data source file, skipped: " + source + " Err: " + err.Message, err.StackTrace);
-                Engine.ResultHandler.SamplePerformance(_date.Date, 0);
+                _resultHandler.ErrorMessage("Error downloading custom data source file, skipped: " + source + " Err: " + err.Message, err.StackTrace);
+                _resultHandler.SamplePerformance(_date.Date, 0);
                 return null;
             }
         }

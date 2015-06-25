@@ -30,11 +30,6 @@ namespace QuantConnect.AlgorithmFactory
     [ClassInterface(ClassInterfaceType.AutoDual)]
     public class Loader : MarshalByRefObject
     {
-        /// <summary>
-        /// Sets a flag indicating whether or not to look for a pdb or mdb file with the same name as the assembly to be loaded
-        /// </summary>
-        public bool TryLoadDebugInformation;
-
         // Defines the maximum amount of time we will allow for instantiating an instance of IAlgorithm
         private readonly TimeSpan _loaderTimeLimit;
 
@@ -124,9 +119,11 @@ namespace QuantConnect.AlgorithmFactory
 
             try
             {
-                // check for debug information if requested
                 byte[] debugInformationBytes = null;
-                if (TryLoadDebugInformation)
+
+                // if the assembly is located in the base directory then don't bother loading the pdbs
+                // manually, they'll be loaded automatically by the .NET runtime.
+                if (new FileInfo(assemblyPath).DirectoryName == AppDomain.CurrentDomain.BaseDirectory)
                 {
                     // see if the pdb exists
                     var mdbFilename = assemblyPath + ".mdb";
@@ -164,7 +161,7 @@ namespace QuantConnect.AlgorithmFactory
 
                 //Get the list of extention classes in the library: 
                 var types = GetExtendedTypeNames(assembly);
-                Log.Trace("Loader.CreateInstance(): Assembly types: " + string.Join(",", types));
+                Log.Debug("Loader.CreateInstance(): Assembly types: " + string.Join(",", types));
 
                 //No extensions, nothing to load.
                 if (types.Count == 0)

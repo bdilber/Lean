@@ -18,8 +18,10 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using QuantConnect.Configuration;
+using QuantConnect.Lean.Engine;
 using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Logging;
+using QuantConnect.Util;
 
 namespace QuantConnect.Tests
 {
@@ -40,22 +42,33 @@ namespace QuantConnect.Tests
 
             // set the configuration up
             Config.Set("algorithm-type-name", algorithm);
-            Config.Set("local", "true");
             Config.Set("live-mode", "false");
             Config.Set("messaging-handler", "QuantConnect.Messaging.Messaging");
             Config.Set("job-queue-handler", "QuantConnect.Queues.JobQueue");
             Config.Set("api-handler", "QuantConnect.Api.Api");
 
             // run the algorithm in its own thread
-            Task.Factory.StartNew(() => Lean.Engine.Engine.Main(null)).Wait();
+            var systemHandlers = LeanEngineSystemHandlers.FromConfiguration(Composer.Instance);
+            var algorithmHandlers = LeanEngineAlgorithmHandlers.FromConfiguration(Composer.Instance);
+            var engine = new Lean.Engine.Engine(systemHandlers, algorithmHandlers, false);
+            Task.Factory.StartNew(() =>
+            {
+                string algorithmPath;
+                var job = systemHandlers.JobQueue.NextJob(out algorithmPath);
+                engine.Run(job, algorithmPath);
+                systemHandlers.JobQueue.AcknowledgeJob(job);
+            }).Wait();
 
-            var consoleResultHandler = (ConsoleResultHandler)Lean.Engine.Engine.ResultHandler;
+            var consoleResultHandler = (ConsoleResultHandler)algorithmHandlers.Results;
             var statistics = consoleResultHandler.FinalStatistics;
 
             foreach (var stat in expectedStatistics)
             {
                 Assert.AreEqual(stat.Value, statistics[stat.Key], "Failed on " + stat.Key);
             }
+
+            systemHandlers.Dispose();
+            algorithmHandlers.Dispose();
         }
     }
 }

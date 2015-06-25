@@ -83,10 +83,7 @@ namespace QuantConnect.Lean.Engine.Setup
 
             // don't force load times to be fast here since we're running locally, this allows us to debug
             // and step through some code that may take us longer than the default 10 seconds
-            var loader = new Loader(TimeSpan.FromHours(1), names => names.Single(name => MatchTypeName(name, algorithmName)))
-            {
-                TryLoadDebugInformation = !Config.GetBool("local")
-            };
+            var loader = new Loader(TimeSpan.FromHours(1), names => names.Single(name => MatchTypeName(name, algorithmName)));
             var complete = loader.TryCreateAlgorithmInstanceWithIsolator(assemblyPath, out algorithm, out error);
             if (!complete) throw new Exception(error + ": try re-building algorithm.");
 
@@ -99,8 +96,9 @@ namespace QuantConnect.Lean.Engine.Setup
         /// <param name="algorithm">Existing algorithm instance</param>
         /// <param name="brokerage">New brokerage instance</param>
         /// <param name="baseJob">Backtesting job</param>
+        /// <param name="resultHandler"></param>
         /// <returns>Boolean true on successfully setting up the console.</returns>
-        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket baseJob)
+        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket baseJob, IResultHandler resultHandler)
         {
             var initializeComplete = false;
 
@@ -134,19 +132,7 @@ namespace QuantConnect.Lean.Engine.Setup
                 }
                 else
                 {
-                    var liveJob = baseJob as LiveNodePacket;
-                    
-                    //Live Job Parameters:
-                    liveJob.DeployId = "LOCALHOST";
-                    liveJob.Type = PacketType.LiveNode;
-
-                    //Call in the brokerage setup:
-                    var setup = new BrokerageSetupHandler();
-                    setup.Setup(algorithm, out brokerage, baseJob);
-
-                    //Live Specific Parameters:
-                    StartingDate = DateTime.Now;
-                    StartingPortfolioValue = algorithm.Portfolio.Cash;
+                    throw new Exception("The ConsoleSetupHandler is for backtests only. Use the BrokerageSetupHandler.");
                 }
             }
             catch (Exception err)

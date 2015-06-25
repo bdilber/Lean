@@ -96,7 +96,6 @@ namespace QuantConnect.Lean.Engine.Setup
                 return names.Single(x => x.Contains(algorithmName));
             });
 
-            loader.TryLoadDebugInformation = !Config.GetBool("local");
             var complete = loader.TryCreateAlgorithmInstanceWithIsolator(assemblyPath, out algorithm, out error);
             if (!complete) throw new Exception(error + " Try re-building algorithm.");
 
@@ -109,8 +108,9 @@ namespace QuantConnect.Lean.Engine.Setup
         /// <param name="algorithm">Algorithm instance</param>
         /// <param name="brokerage">New brokerage output instance</param>
         /// <param name="job">Algorithm job task</param>
+        /// <param name="resultHandler"></param>
         /// <returns>True on successfully setting up the algorithm state, or false on error.</returns>
-        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket job)
+        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket job, IResultHandler resultHandler)
         {
             _algorithm = algorithm;
             brokerage = default(IBrokerage);
@@ -196,7 +196,7 @@ namespace QuantConnect.Lean.Engine.Setup
                 }
 
                 // let the world know what we're doing since logging in can take a minute
-                Engine.ResultHandler.SendStatusUpdate(job.AlgorithmId, AlgorithmStatus.LoggingIn, "Logging into brokerage...");
+                resultHandler.SendStatusUpdate(job.AlgorithmId, AlgorithmStatus.LoggingIn, "Logging into brokerage...");
 
                 // initialize the correct brokerage using the resolved factory
                 brokerage = _factory.CreateBrokerage(liveJob, algorithm);

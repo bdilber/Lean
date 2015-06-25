@@ -16,6 +16,8 @@
 
 using System;
 using System.Threading;
+using QuantConnect.Interfaces;
+using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Logging;
 
 namespace QuantConnect.Lean.Engine
@@ -26,41 +28,51 @@ namespace QuantConnect.Lean.Engine
     /// </summary>
     public class StateCheck
     {
-
         /// DB Ping Class
         public class Ping
         {
             // set to true to break while loop in Run()
             private static volatile bool _exitTriggered;
 
+            private readonly AlgorithmManager _algorithmManager;
+            private readonly IApi _api;
+            private readonly IResultHandler _resultHandler;
+
+            public Ping(AlgorithmManager algorithmManager, IApi api, IResultHandler resultHandler)
+            {
+                _algorithmManager = algorithmManager;
+                _api = api;
+                _resultHandler = resultHandler;
+            }
+
             /// DB Ping Run Method:
-            public static void Run()
+            public void Run()
             {
                 while (!_exitTriggered)
                 {
-                    if (AlgorithmManager.AlgorithmId != "" && AlgorithmManager.QuitState == false)
+                    try
                     {
-                        try
+                        Thread.Sleep(500);
+                        if (_algorithmManager.AlgorithmId != "" && _algorithmManager.QuitState == false)
                         {
                             //Get the state from the central server:
-                            var state = Engine.Api.GetAlgorithmStatus(AlgorithmManager.AlgorithmId);
+                            var state = _api.GetAlgorithmStatus(_algorithmManager.AlgorithmId);
 
                             //Set state via get/set method:
-                            AlgorithmManager.SetStatus(state.Status);
+                            _algorithmManager.SetStatus(state.Status);
 
                             //Set which chart the user is look at, so we can reduce excess messaging (e.g. trading 100 symbols, only send 1).
-                            Engine.ResultHandler.SetChartSubscription(state.ChartSubscription);
-                        }
-                        catch (ThreadAbortException)
-                        {
-                            return;
-                        }
-                        catch (Exception err) 
-                        {
-                            Log.Error("StateCheck.Run(): Error in state check: " + err.Message);
+                            _resultHandler.SetChartSubscription(state.ChartSubscription);
                         }
                     }
-                    Thread.Sleep(500);
+                    catch (ThreadAbortException)
+                    {
+                        return;
+                    }
+                    catch (Exception err)
+                    {
+                        Log.Error("StateCheck.Run(): Error in state check: " + err.Message);
+                    }
                 }
             }
 

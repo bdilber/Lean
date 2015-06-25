@@ -14,13 +14,17 @@
  *
 */
 
+using System.ComponentModel.Composition;
+using QuantConnect.Interfaces;
+using QuantConnect.Lean.Engine.Results;
+
 namespace QuantConnect.Lean.Engine.TransactionHandlers
 {
     /// <summary>
     /// Transaction handlers define how the transactions are processed and set the order fill information.
     /// The pass this information back to the algorithm portfolio and ensure the cash and portfolio are synchronized.
     /// </summary>
-    /// <remarks>A new transaction handler is required for each each brokerage endpoint.</remarks>
+    [InheritedExport(typeof(ITransactionHandler))]
     public interface ITransactionHandler
     {
         /// <summary>
@@ -39,6 +43,11 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
         {
             get;
         }
+
+        /// <summary>
+        /// Initializes the transaction handler for the specified algorithm using the specified brokerage implementation
+        /// </summary>
+        void Initialize(IAlgorithm algorithm, IBrokerage brokerage, IResultHandler resultHandler);
 
         /// <summary>
         /// Primary thread entry point to launch the transaction thread.

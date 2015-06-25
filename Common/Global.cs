@@ -281,41 +281,6 @@ namespace QuantConnect
     }
 
     /// <summary>
-    /// Realtime events handler options for handling realtime events in the algorithm
-    /// </summary>
-    public enum RealTimeEndpoint
-    {
-        /// Backtesting Faked RealTime Events
-        Backtesting,
-        /// Live Trading RealTime Events
-        LiveTrading
-    }
-
-    /// <summary>
-    /// Setup handler options for setting up algorithm state and the livetrading/backtest requirements.
-    /// </summary>
-    public enum SetupHandlerEndpoint
-    {
-        /// Configure algorithm+job for backtesting:
-        Backtesting,
-        /// Configure algorithm+job for the console:
-        Console,
-        /// Live trading against a user's brokerage
-        Brokerage
-    }
-
-    /// <summary>
-    /// Transaction handler options for selecting who processes the transactions
-    /// </summary>
-    public enum TransactionHandlerEndpoint
-    {
-        /// Use Backtesting Models to Process Transactions
-        Backtesting,
-        /// Use a brokerage for live/paper trading in realtime
-        Brokerage
-    }
-
-    /// <summary>
     /// Cloud storage permission options.
     /// </summary>
     public enum StoragePermissions
@@ -357,64 +322,6 @@ namespace QuantConnect
         Daily
     }
 
-    /// <summary>
-    /// Country codes for data grouping to support internationalization
-    /// </summary>
-    public enum CountryCode
-    {
-        /// No country / global.
-        None,
-        /// United States
-        USA,
-        /// United Kingdom
-        GBR,
-        /// Japan
-        JPN,
-        /// Germany
-        DEU,
-        /// China
-        CHN,
-        /// India
-        IND,
-        /// Brazil
-        BRA,
-        /// Australia
-        AUS,
-        /// Switzerland
-        CHE,
-        /// Hong Kong
-        HKG,
-        /// Canada
-        CAN,
-        /// France
-        FRA,
-        /// Spain
-        ESP,
-        /// Mexico
-        MEX,
-        /// Korea
-        KOR,
-        /// South Africa
-        ZAF,
-        /// Taiwan
-        TWN
-    }
-
-
-    /// <summary>
-    /// Data source for data which is liquidity provider specific, such as CFD or Forex.
-    /// </summary>
-    public enum LiquiditityProviderDataSource
-    {
-        /// Liquidity is exchange driven and not brokerage specific.
-        NotApplicable,
-
-        /// FXCM Supplies Lean Forex Data
-        FXCM,
-
-        /// Oanda supplies Lean Forex and Cfd Data 
-        Oanda
-    }
 
     /// <summary>
     /// Wrapper for algorithm status enum to include the charting subscription.

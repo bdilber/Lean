@@ -115,7 +115,7 @@ namespace QuantConnect.Lean.Engine.Setup
             IAlgorithm algorithm;
 
             // limit load times to 10 seconds and force the assembly to have exactly one derived type
-            var loader = new Loader(TimeSpan.FromSeconds(10), names => names.SingleOrDefault()) {TryLoadDebugInformation = true};
+            var loader = new Loader(TimeSpan.FromSeconds(10), names => names.SingleOrDefault());
             bool complete = loader.TryCreateAlgorithmInstanceWithIsolator(assemblyPath, out algorithm, out error);
             if (!complete) throw new Exception(error + " Try re-building algorithm.");
 
@@ -128,8 +128,9 @@ namespace QuantConnect.Lean.Engine.Setup
         /// <param name="algorithm">Algorithm instance</param>
         /// <param name="brokerage">Brokerage instance</param>
         /// <param name="baseJob">Algorithm job</param>
+        /// <param name="resultHandler"></param>
         /// <returns>Boolean true on successfully initializing the algorithm</returns>
-        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket baseJob)
+        public bool Setup(IAlgorithm algorithm, out IBrokerage brokerage, AlgorithmNodePacket baseJob, IResultHandler resultHandler)
         {
             var job = baseJob as BacktestNodePacket;
             if (job == null)

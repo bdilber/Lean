@@ -30,7 +30,7 @@ namespace QuantConnect.Queues
     {
         // The type name of the QuantConnect.Brokerages.Paper.PaperBrokerage
         private const string PaperBrokerageTypeName = "PaperBrokerage";
-        private bool _liveMode = Config.GetBool("live-mode"); 
+        private bool _liveMode = Config.GetBool("live-mode");
         
         /// <summary>
         /// Physical location of Algorithm DLL.
@@ -40,7 +40,7 @@ namespace QuantConnect.Queues
             get
             {
                 // we expect this dll to be copied into the output directory
-                return "QuantConnect.Algorithm.dll";
+                return Config.Get("algorithm-location", "QuantConnect.Algorithm.CSharp.dll"); 
             }
         }
 
@@ -59,6 +59,7 @@ namespace QuantConnect.Queues
         public AlgorithmNodePacket NextJob(out string location)
         {
             location = AlgorithmLocation;
+            Log.Trace("JobQueue.NextJob(): Selected " + location);
 
             //If this isn't a backtesting mode/request, attempt a live job.
             if (_liveMode)
@@ -66,16 +67,13 @@ namespace QuantConnect.Queues
                 var liveJob = new LiveNodePacket
                 {
                     Type = PacketType.LiveNode,
-                    DataEndpoint = DataFeedEndpoint.LiveTrading,
-                    RealTimeEndpoint = RealTimeEndpoint.LiveTrading,
-                    SetupEndpoint = SetupHandlerEndpoint.Brokerage,
-                    TransactionEndpoint = TransactionHandlerEndpoint.Brokerage,
                     Algorithm = File.ReadAllBytes(AlgorithmLocation),
                     Brokerage = Config.Get("live-mode-brokerage", PaperBrokerageTypeName),
                     Channel = Config.Get("job-channel"),
                     UserId = Config.GetInt("job-user-id"),
                     Version = Constants.Version,
-                    DeployId = Config.Get("algorithm-type-name")
+                    DeployId = Config.Get("algorithm-type-name"),
+                    RamAllocation = int.MaxValue
                 };
 
                 try
@@ -83,12 +81,6 @@ namespace QuantConnect.Queues
                     // import the brokerage data for the configured brokerage
                     var brokerageFactory = Composer.Instance.Single<IBrokerageFactory>(factory => factory.BrokerageType.MatchesTypeName(liveJob.Brokerage));
                     liveJob.BrokerageData = brokerageFactory.BrokerageData;
-
-                    // if we're doing paper select the correct transaction handler
-                    if (liveJob.Brokerage == "PaperBrokerage")
-                    {
-                        liveJob.TransactionEndpoint = TransactionHandlerEndpoint.Backtesting;
-                    }
                 }
                 catch (Exception err)
                 {
@@ -102,14 +94,12 @@ namespace QuantConnect.Queues
             var backtestJob = new BacktestNodePacket(0, 0, "", new byte[] {}, 10000, "local")
             {
                 Type = PacketType.BacktestNode,
-                DataEndpoint = DataFeedEndpoint.FileSystem,
-                SetupEndpoint = SetupHandlerEndpoint.Console,
-                RealTimeEndpoint = RealTimeEndpoint.Backtesting,
-                TransactionEndpoint = TransactionHandlerEndpoint.Backtesting,
                 Algorithm = File.ReadAllBytes(AlgorithmLocation),
                 Version = Constants.Version,
-                BacktestId = Config.Get("algorithm-type-name")
+                BacktestId = Config.Get("algorithm-type-name"),
+                RamAllocation = int.MaxValue
             };
+
             return backtestJob;
         }
 
@@ -119,7 +109,9 @@ namespace QuantConnect.Queues
         /// <param name="job"></param>
         public void AcknowledgeJob(AlgorithmNodePacket job)
         {
-            //
+            // Make the console window pause so we can read log output before exiting and killing the application completely
+            Log.Trace("Engine.Main(): Analysis Complete. Press any key to continue.");
+            Console.Read();
         }
     }
 

@@ -109,37 +109,10 @@ namespace QuantConnect.Packets
         public string RequestSource = "WebIDE";
 
         /// <summary>
-        /// DataFeed plugin name to select for the task
+        /// The maximum amount of RAM (in MB) this algorithm is allowed to utilize
         /// </summary>
-        [JsonProperty(PropertyName = "eDataEndpoint")]
-        public DataFeedEndpoint DataEndpoint = DataFeedEndpoint.Backtesting;
-
-        /// <summary>
-        /// Transaction handler plugin to select for task
-        /// </summary>
-        [JsonProperty(PropertyName = "eTransactionEndpoint")]
-        public TransactionHandlerEndpoint TransactionEndpoint = TransactionHandlerEndpoint.Backtesting;
-
-        /// <summary>
-        /// Result endpoint plugin to select for task
-        /// </summary>
-        /// <remarks>
-        ///     DEPRECATED: Maintained here for temporary consistency. Eventually all the endpoint enums will be replaced with MEF / Type import loading by config.
-        /// </remarks>
-        //[JsonProperty(PropertyName = "eResultEndpoint")]
-        //public ResultHandlerEndpoint ResultEndpoint = ResultHandlerEndpoint.Backtesting;
-
-        /// <summary>
-        /// Setup handler endpoint for this task
-        /// </summary>
-        [JsonProperty(PropertyName = "eSetupEndpoint")]
-        public SetupHandlerEndpoint SetupEndpoint = SetupHandlerEndpoint.Backtesting;
-
-        /// <summary>
-        /// Realtime events handler for this task
-        /// </summary>
-        [JsonProperty(PropertyName = "eRealTimeEndpoint")]
-        public RealTimeEndpoint RealTimeEndpoint = RealTimeEndpoint.Backtesting;
+        [JsonProperty(PropertyName = "iMaxRamAllocation")]
+        public int RamAllocation;
     } // End Node Packet:
 
 } // End of Namespace:

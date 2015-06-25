@@ -104,8 +104,9 @@ namespace QuantConnect.Data.Market
         /// Return a new instance with the same values as this original.
         /// </summary>
         /// <param name="original">Original tradebar object we seek to clone</param>
-        public TradeBar(TradeBar original) 
+        public TradeBar(TradeBar original)
         {
+            DataType = MarketDataType.TradeBar;
             Time = new DateTime(original.Time.Ticks);
             Symbol = original.Symbol;
             Value = original.Close;
@@ -139,6 +140,7 @@ namespace QuantConnect.Data.Market
             Close = close;
             Volume = volume;
             Period = period ?? TimeSpan.FromMinutes(1);
+            DataType = MarketDataType.TradeBar;
         }
 
         /// <summary>
@@ -319,21 +321,12 @@ namespace QuantConnect.Data.Market
                 return new SubscriptionDataSource(string.Empty, SubscriptionTransportMedium.LocalFile);
             }
 
-            var dateFormat = "yyyyMMdd";
-            var dataType = TickType.Trade;
-            if (config.SecurityType == SecurityType.Forex)
-            {
-                dataType = TickType.Quote;
-                dateFormat = "yyMMdd";
-            }
-
-            string source;
+            var dataType = config.SecurityType == SecurityType.Forex ? TickType.Quote : TickType.Trade; 
             var securityTypePath = config.SecurityType.ToString().ToLower();
             var resolutionPath = config.Resolution.ToString().ToLower();
             var symbolPath = (string.IsNullOrEmpty(config.MappedSymbol) ? config.Symbol : config.MappedSymbol).ToLower();
-            var countryCode = config.Country.ToString().ToLower();
-            var liquiditySource = config.LiquditySource.ToString().ToLower();
-            var filename = date.ToString(dateFormat) + "_" + dataType.ToString().ToLower() + ".zip";
+            var market = config.Market.ToLower();
+            var filename = date.ToString(DateFormat.EightCharacter) + "_" + dataType.ToString().ToLower() + ".zip";
 
 
             if (config.Resolution == Resolution.Hour || config.Resolution == Resolution.Daily)
@@ -343,15 +336,7 @@ namespace QuantConnect.Data.Market
                 symbolPath = string.Empty;
             }
 
-            if (config.Country == CountryCode.None)
-            {
-                //No country are international or brokerage specific liquidity providers with certain spreads.
-                source = Path.Combine(Constants.DataFolder, securityTypePath, liquiditySource, resolutionPath, symbolPath, filename);
-            }
-            else
-            {
-                source = Path.Combine(Constants.DataFolder, securityTypePath, countryCode, resolutionPath, symbolPath, filename);
-            }
+            var source = Path.Combine(Constants.DataFolder, securityTypePath, market, resolutionPath, symbolPath, filename);
 
             return new SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile);
         }
