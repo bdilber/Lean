@@ -114,19 +114,25 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\DotNetZip.1.9.3\lib\net20\Ionic.Zip.dll</HintPath>
     </Reference>
+    <Reference Include="MathNet.Numerics, Version=3.7.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\MathNet.Numerics.3.7.0\lib\net40\MathNet.Numerics.dll</HintPath>
+    </Reference>
     <Reference Include="MySql.Data">
       <HintPath>..\packages\MySql.Data.6.9.6\lib\net45\MySql.Data.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.6.0.8\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RestSharp">
-      <HintPath>..\packages\RestSharp.105.0.1\lib\net4\RestSharp.dll</HintPath>
+    <Reference Include="RestSharp, Version=105.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\RestSharp.105.1.0\lib\net45\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Properties\SharedAssemblyInfo.cs">
@@ -137,16 +143,24 @@
     <Compile Include="DataFeeds\Auxiliary\FactorFileRow.cs" />
     <Compile Include="DataFeeds\Auxiliary\MapFile.cs" />
     <Compile Include="DataFeeds\Auxiliary\MapFileRow.cs" />
+    <Compile Include="DataFeeds\BaseDataSubscriptionFactory.cs" />
+    <Compile Include="DataFeeds\CreateStreamReaderErrorEventArgs.cs" />
+    <Compile Include="DataFeeds\FillForwardEnumerator.cs" />
+    <Compile Include="DataFeeds\InvalidSourceEventArgs.cs" />
+    <Compile Include="DataFeeds\ISubscriptionFactory.cs" />
     <Compile Include="DataFeeds\LiveTradingDataFeed.cs" />
     <Compile Include="DataFeeds\DatabaseDataFeed.cs" />
     <Compile Include="DataFeeds\Queues\DataQueue.cs" />
+    <Compile Include="DataFeeds\Queues\FakeDataQueue.cs" />
+    <Compile Include="DataFeeds\ReaderErrorEventArgs.cs" />
     <Compile Include="DataFeeds\StreamStore.cs" />
     <Compile Include="DataFeeds\SubscriptionDataReader.cs" />
+    <Compile Include="DataFeeds\SubscriptionFilterEnumerator.cs" />
+    <Compile Include="DataFeeds\TimeSlice.cs" />
     <Compile Include="DataFeeds\Transport\IStreamReader.cs" />
     <Compile Include="DataFeeds\Transport\LocalFileSubscriptionStreamReader.cs" />
     <Compile Include="DataFeeds\Transport\RemoteFileSubscriptionStreamReader.cs" />
     <Compile Include="DataFeeds\Transport\RestSubscriptionStreamReader.cs" />
-    <Compile Include="DataStream.cs" />
     <Compile Include="LeanEngineAlgorithmHandlers.cs" />
     <Compile Include="LeanEngineSystemHandlers.cs" />
     <Compile Include="RealTime\RealTimeEvent.cs" />
@@ -185,6 +199,10 @@
     <ProjectReference Include="..\Algorithm.FSharp\QuantConnect.Algorithm.FSharp.fsproj">
       <Project>{7702711a-0c09-40d4-b151-e308d1520738}</Project>
       <Name>QuantConnect.Algorithm.FSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Algorithm.VisualBasic\QuantConnect.Algorithm.VisualBasic.vbproj">
+      <Project>{af8f124b-b441-4aa7-92b7-cea72bdb4118}</Project>
+      <Name>QuantConnect.Algorithm.VisualBasic</Name>
     </ProjectReference>
     <ProjectReference Include="..\AlgorithmFactory\QuantConnect.AlgorithmFactory.csproj">
       <Project>{e99d056a-b6fb-48d2-9f7c-683c54cebbf9}</Project>
