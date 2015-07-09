@@ -138,7 +138,7 @@ namespace QuantConnect.Securities.Futures
         /// <param name="netLiquidationValue">The net liquidation value for the entire account</param>
         /// <param name="totalMargin">The totl margin used by the account in units of base currency</param>
         /// <returns>An order object representing a liquidation order to be executed to bring the account within margin requirements</returns>
-        public virtual Order GenerateMarginCallOrder(Security security, decimal netLiquidationValue, decimal totalMargin)
+        public virtual SubmitOrderRequest GenerateMarginCallOrder(Security security, decimal netLiquidationValue, decimal totalMargin)
         {
 
             var futures = security as Futures;
@@ -169,7 +169,7 @@ namespace QuantConnect.Securities.Futures
                 quantity *= -1;
             }
 
-            return new MarketOrder(futures.Symbol, quantity, futures.Time, "Margin Call", futures.Type);
+            return new SubmitOrderRequest(OrderType.Market, security.Type, security.Symbol, quantity, security.Price, 0, 0, security.Time, "Margin Call");
         }
     }
 }

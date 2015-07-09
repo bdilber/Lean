@@ -37,11 +37,20 @@ namespace QuantConnect.Securities.Futures
         /******************************************************** 
         * CONSTRUCTOR/DELEGATE DEFINITIONS
         *********************************************************/
+
         /// <summary>
         /// Constructor for the Futures security
         /// </summary>
-        public Futures(SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1, bool isDynamicallyLoadedData = false) 
-            : base(config, 1, isDynamicallyLoadedData) 
+        public Futures(SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1, bool isDynamicallyLoadedData = false)
+            : this(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours(config), config, initialMarginRequirement, maintenanceMarginRequirement, contractSize, isDynamicallyLoadedData)
+        {
+        }
+
+        /// <summary>
+        /// Constructor for the Futures security
+        /// </summary>
+        public Futures(SecurityExchangeHours exchangeHours, SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1, bool isDynamicallyLoadedData = false) 
+            : base(exchangeHours, config, 1, isDynamicallyLoadedData) 
         {
             _contractSize = contractSize;
             _initialMarginRequirement = initialMarginRequirement;
