@@ -88,7 +88,7 @@ namespace QuantConnect.Securities.Futures
                     //Update Vehicle Profit Tracking:
                     futures.Holdings.AddNewProfit(lastTradeProfit);
                     futures.Holdings.SetLastTradeProfit(lastTradeProfit);
-                    portfolio.AddTransactionRecord(futures.Time, lastTradeProfit - 2*feeThisOrder);
+                    portfolio.AddTransactionRecord(futures.LocalTime.ConvertToUtc(futures.Exchange.TimeZone), lastTradeProfit - 2*feeThisOrder);
                 }
 
                 //Set the results back to the vehicle.

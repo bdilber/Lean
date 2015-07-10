@@ -99,7 +99,7 @@ namespace QuantConnect.Securities.Futures
             }
 
             // this is in the account currency
-            var marketOrder = new MarketOrder(_futures.Symbol, -Quantity, _futures.Time, type: _futures.Type) { Price = Price };
+            var marketOrder = new MarketOrder(_futures.Symbol, -Quantity, _futures.LocalTime.ConvertToUtc(_futures.Exchange.TimeZone), type: _futures.Type) { Price = Price };
             var orderFee = _futures.TransactionModel.GetOrderFee(_futures, marketOrder);
 
             return (Price - AveragePrice) * Quantity * _futures.ContractSize - orderFee;
