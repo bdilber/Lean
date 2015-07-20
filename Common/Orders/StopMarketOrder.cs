@@ -28,6 +28,14 @@ namespace QuantConnect.Orders
         public decimal StopPrice;
 
         /// <summary>
+        /// StopMarket Order Type
+        /// </summary>
+        public override OrderType Type
+        {
+            get { return OrderType.StopMarket; }
+        }
+
+        /// <summary>
         /// Value of the order at stop price
         /// </summary>
         public override decimal Value
@@ -39,7 +47,6 @@ namespace QuantConnect.Orders
         /// Default constructor for JSON Deserialization:
         /// </summary>
         public StopMarketOrder()
-            : base(OrderType.StopMarket)
         {
         }
 
@@ -53,7 +60,7 @@ namespace QuantConnect.Orders
         /// <param name="stopPrice">Price the order should be filled at if a limit order</param>
         /// <param name="tag">User defined data tag for this order</param>
         public StopMarketOrder(string symbol, int quantity, decimal stopPrice, DateTime time, string tag = "", SecurityType type = SecurityType.Base)
-            : base(symbol, quantity, OrderType.StopMarket, time, tag, type)
+            : base(symbol, quantity, time, tag, type)
         {
             StopPrice = stopPrice;
 
@@ -97,6 +104,17 @@ namespace QuantConnect.Orders
         public override string ToString()
         {
             return string.Format("{0} order for {1} unit{2} of {3} at stop {4}", Type, Quantity, Quantity == 1 ? "" : "s", Symbol, StopPrice.SmartRounding());
+        }
+
+        /// <summary>
+        /// Creates a deep-copy clone of this order
+        /// </summary>
+        /// <returns>A copy of this order</returns>
+        public override Order Clone()
+        {
+            var order = new StopMarketOrder {StopPrice = StopPrice};
+            CopyTo(order);
+            return order;
         }
     }
 }
