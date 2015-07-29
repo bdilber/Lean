@@ -62,12 +62,13 @@ namespace QuantConnect.Securities.Futures
 
         /// <summary>
         /// Unlevered Acquisition cost of the security total holdings.
+        /// This is always positive since margin requirement is always positive for short or long positions.
         /// </summary>
         public override decimal UnleveredHoldingsCost
         {
             get
             {
-                return _futures.InitialMarginRequirement * Convert.ToDecimal(Quantity);
+                return _futures.InitialMarginRequirement * Math.Abs(Convert.ToDecimal(Quantity));
             }
         }
 
