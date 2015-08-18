@@ -49,12 +49,6 @@
     "tradier-issued-at": "",
     "trader-lifespan": "",
 
-    //Database Datafeed Connection:
-    "database-address": "localhost",
-    "database-user": "root",
-    "database-password": "",
-    "database-name": "lean",
-
     "environments": {
 
         // defines the 'backtesting' environment

@@ -243,10 +243,17 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
                 return OrderTicket.InvalidCancelOrderId(_algorithm.Transactions, request);
             }
 
-            ticket.SetCancelRequest(request);
-            
             try
             {
+                // if we couldn't set this request as the cancellation then another thread/someone
+                // else is already doing it or it in fact has already been cancelled
+                if (!ticket.TrySetCancelRequest(request))
+                {
+                    // the ticket has already been cancelled
+                    request.SetResponse(OrderResponse.Error(request, OrderResponseErrorCode.InvalidRequest, "Cancellation is already in progress."));
+                    return ticket;
+                }
+
                 //Error check
                 var order = GetOrderByIdInternal(request.OrderId);
                 if (order == null)
@@ -256,7 +263,7 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
                 }
                 else if (order.Status.IsClosed())
                 {
-                    Log.Error("BrokerageTransactionHandler.CancelOrder(): Order already filled");
+                    Log.Error("BrokerageTransactionHandler.CancelOrder(): Order already " + order.Status);
                     request.SetResponse(OrderResponse.InvalidStatus(request, order));
                 }
                 else
@@ -348,40 +355,50 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
         /// </summary>
         public void Run()
         {
-            while (!_exitTriggered)
+            try
             {
-                _processingCompletedEvent.Reset();
-
-                OrderRequest request;
-                if (!_orderRequestQueue.TryDequeue(out request))
+                while (!_exitTriggered)
                 {
-                    _processingCompletedEvent.Set();
+                    _processingCompletedEvent.Reset();
 
-                    // if it's empty just sleep this thread for a little bit
-                    Thread.Sleep(1);
-                    continue;
+                    OrderRequest request;
+                    if (!_orderRequestQueue.TryDequeue(out request))
+                    {
+                        _processingCompletedEvent.Set();
+
+                        // if it's empty just sleep this thread for a little bit
+                        Thread.Sleep(1);
+                        continue;
+                    }
+
+                    OrderResponse response;
+                    switch (request.OrderRequestType)
+                    {
+                        case OrderRequestType.Submit:
+                            response = HandleSubmitOrderRequest((SubmitOrderRequest) request);
+                            break;
+                        case OrderRequestType.Update:
+                            response = HandleUpdateOrderRequest((UpdateOrderRequest) request);
+                            break;
+                        case OrderRequestType.Cancel:
+                            response = HandleCancelOrderRequest((CancelOrderRequest) request);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    // we've finally finished processing the request, mark as processed
+                    request.SetResponse(response, OrderRequestStatus.Processed);
+
+                    ProcessAsynchronousEvents();
                 }
-
-                OrderResponse response;
-                switch (request.OrderRequestType)
-                {
-                    case OrderRequestType.Submit:
-                        response = HandleSubmitOrderRequest((SubmitOrderRequest) request);
-                        break;
-                    case OrderRequestType.Update:
-                        response = HandleUpdateOrderRequest((UpdateOrderRequest) request);
-                        break;
-                    case OrderRequestType.Cancel:
-                        response = HandleCancelOrderRequest((CancelOrderRequest) request);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-
-                // we've finally finished processing the request, mark as processed
-                request.SetResponse(response, OrderRequestStatus.Processed);
-
-                ProcessAsynchronousEvents();
+            }
+            catch (Exception err)
+            {
+                // unexpected error, we need to close down shop
+                Log.Error(err);
+                // quit the algorithm due to error
+                _algorithm.RunTimeError = err;
             }
 
             Log.Trace("BrokerageTransactionHandler.Run(): Ending Thread...");
@@ -444,7 +461,11 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
 
             // we want to remove orders older than 10k records, but only in live mode
             const int maxOrdersToKeep = 10000;
-            if (_orders.Count < maxOrdersToKeep + 1) return;
+            if (_orders.Count < maxOrdersToKeep + 1)
+            {
+                Log.Debug("BrokerageTransactionHandler.ProcessSynchronousEvents(): Exit");
+                return;
+            }
 
             int max = _orders.Max(x => x.Key);
             int lowestOrderIdToKeep = max - maxOrdersToKeep;
@@ -565,7 +586,19 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
             ticket.SetOrder(order);
 
             // check to see if we have enough money to place the order
-            if (!_algorithm.Transactions.GetSufficientCapitalForOrder(_algorithm.Portfolio, order))
+            bool sufficientCapitalForOrder;
+            try
+            {
+                sufficientCapitalForOrder = _algorithm.Transactions.GetSufficientCapitalForOrder(_algorithm.Portfolio, order);
+            }
+            catch (Exception err)
+            {
+                Log.Error(err);
+                _algorithm.Error(string.Format("Order Error: id: {0}, Error executing margin models: {1}", order.Id, err.Message));
+                return OrderResponse.Error(request, OrderResponseErrorCode.ProcessingError, "Error in GetSufficientCapitalForOrder");
+            }
+
+            if (!sufficientCapitalForOrder)
             {
                 order.Status = OrderStatus.Invalid;
                 var security = _algorithm.Securities[order.Symbol];
@@ -744,7 +777,15 @@ namespace QuantConnect.Lean.Engine.TransactionHandlers
             {
                 Log.Debug("BrokerageTransactionHandler.HandleOrderEvent(): " + fill);
                 Interlocked.Exchange(ref _lastFillTimeTicks, DateTime.Now.Ticks);
-                _algorithm.Portfolio.ProcessFill(fill);
+                try
+                {
+                    _algorithm.Portfolio.ProcessFill(fill);
+                }
+                catch (Exception err)
+                {
+                    Log.Error(err);
+                    _algorithm.Error(string.Format("Order Error: id: {0}, Eror in Portfolio.ProcessFill: {1}", order.Id, err.Message));
+                }
             }
 
             // update the ticket after we've processed the fill, but before the event, this way everything is ready for user code

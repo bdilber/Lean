@@ -50,7 +50,7 @@ namespace QuantConnect.Brokerages.Tradier
 
         // we're reusing the equity exchange here to grab typical exchange hours
         private static readonly EquityExchange Exchange =
-            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Equity));
+            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Equity, TimeZones.NewYork));
         
         //Access and Refresh Tokens:
         private string _previousResponseRaw = "";
@@ -177,7 +177,7 @@ namespace QuantConnect.Brokerages.Tradier
                 _orderFillTimer.Dispose();
             }
             
-            var dueTime = ExpectedExpiry - DateTime.Now;
+            var dueTime = ExpectedExpiry - DateTime.UtcNow;
             if (dueTime < TimeSpan.Zero) dueTime = TimeSpan.Zero;
             var period = TimeSpan.FromDays(1).Subtract(TimeSpan.FromMinutes(-1));
             _refreshTimer = new Timer(state => RefreshSession(), null, dueTime, period);
