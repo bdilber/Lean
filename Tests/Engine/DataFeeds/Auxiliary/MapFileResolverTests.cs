@@ -17,7 +17,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using QuantConnect.Lean.Engine.DataFeeds.Auxiliary;
+using QuantConnect.Data.Auxiliary;
 
 namespace QuantConnect.Tests.Engine.DataFeeds.Auxiliary
 {
@@ -32,6 +32,16 @@ namespace QuantConnect.Tests.Engine.DataFeeds.Auxiliary
             var spyMapFile = _resolver.ResolveMapFile("SPY", new DateTime(2015, 08, 23));
             Assert.IsNotNull(spyMapFile);
             Assert.AreEqual("SPY", spyMapFile.GetMappedSymbol(new DateTime(2015, 08, 23)));
+        }
+
+        [Test]
+        public void ResolvesMapFilesOnNonSpecifiedDates()
+        {
+            var mapFile = _resolver.ResolveMapFile("GOOG", new DateTime(2014, 04, 01));
+            Assert.AreEqual("GOOGL", mapFile.Permtick);
+
+            mapFile = _resolver.ResolveMapFile("GOOG", new DateTime(2014, 04, 03));
+            Assert.AreEqual("GOOG", mapFile.Permtick);
         }
 
         [Test]
@@ -58,38 +68,38 @@ namespace QuantConnect.Tests.Engine.DataFeeds.Auxiliary
 
         private static MapFileResolver CreateMapFileResolver()
         {
-            return new MapFileResolver(new List<KeyValuePair<string, MapFile>>
+            return new MapFileResolver(new List<MapFile>
             {
                 // remapped
-                new KeyValuePair<string, MapFile>("goog.csv", new MapFile("goog", new List<MapFileRow>
+                new MapFile("goog", new List<MapFileRow>
                 {
                     new MapFileRow(new DateTime(2014, 03, 27), "goocv"),
                     new MapFileRow(new DateTime(2014, 04, 02), "goocv"),
                     new MapFileRow(new DateTime(2050, 12, 31), "goog")
-                })),
-                new KeyValuePair<string, MapFile>("googl.csv", new MapFile("googl", new List<MapFileRow>
+                }),
+                new MapFile("googl", new List<MapFileRow>
                 {
                     new MapFileRow(new DateTime(2004, 08, 19), "goog"),
                     new MapFileRow(new DateTime(2014, 04, 02), "goog"),
                     new MapFileRow(new DateTime(2050, 12, 31), "googl")
-                })),
+                }),
                 // straight mapping
-                new KeyValuePair<string, MapFile>("spy.csv", new MapFile("spy", new List<MapFileRow>
+                new MapFile("spy", new List<MapFileRow>
                 {
                     new MapFileRow(new DateTime(1998, 01, 02), "spy"),
                     new MapFileRow(new DateTime(2050, 12, 31), "spy")
-                })),
+                }),
                 // new share class overtakes old share class same symbol
-                new KeyValuePair<string, MapFile>("oih.1.csv", new MapFile("oih.1", new List<MapFileRow>
+                new MapFile("oih.1", new List<MapFileRow>
                 {
                     new MapFileRow(new DateTime(2010, 02, 07), "oih"),
                     new MapFileRow(new DateTime(2011, 12, 20), "oih")
-                })),
-                new KeyValuePair<string, MapFile>("oih.csv", new MapFile("oih", new List<MapFileRow>
+                }),
+                new MapFile("oih", new List<MapFileRow>
                 {
                     new MapFileRow(new DateTime(2011, 12, 21), "oih"),
                     new MapFileRow(new DateTime(2050, 12, 31), "oih")
-                })),
+                }),
             });
         }
     }

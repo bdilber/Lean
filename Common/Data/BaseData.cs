@@ -26,7 +26,7 @@ namespace QuantConnect.Data
     {
         private MarketDataType _dataType = MarketDataType.Base;
         private DateTime _time;
-        private string _symbol = string.Empty;
+        private Symbol _symbol = Symbol.Empty;
         private decimal _value;
         private bool _isFillForward;
 
@@ -81,9 +81,9 @@ namespace QuantConnect.Data
         }
         
         /// <summary>
-        /// String symbol representation for underlying Security
+        /// Symbol representation for underlying Security
         /// </summary>
-        public string Symbol
+        public Symbol Symbol
         {
             get
             {
@@ -183,7 +183,9 @@ namespace QuantConnect.Data
         /// <param name="bidPrice">Current bid price</param>
         /// <param name="askPrice">Current asking price</param>
         /// <param name="volume">Volume of this trade</param>
-        public virtual void Update(decimal lastTrade, decimal bidPrice, decimal askPrice, decimal volume)
+        /// <param name="bidSize">The size of the current bid, if available</param>
+        /// <param name="askSize">The size of the current ask, if available</param>
+        public virtual void Update(decimal lastTrade, decimal bidPrice, decimal askPrice, decimal volume, decimal bidSize, decimal askSize)
         {
             Value = lastTrade;
         }

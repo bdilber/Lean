@@ -19,6 +19,7 @@ using System.Collections;
 using System.Collections.Generic;
 using NodaTime;
 using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Securities;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -29,6 +30,15 @@ namespace QuantConnect.Lean.Engine.DataFeeds
     public class Subscription : IEnumerator<BaseData>
     {
         private readonly IEnumerator<BaseData> _enumerator;
+
+        /// <summary>
+        /// Gets the universe for this subscription
+        /// </summary>
+        public Universe Universe
+        {
+            get;
+            private set;
+        }
 
         /// <summary>
         /// Gets the security this subscription points to
@@ -56,7 +66,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <summary>
         /// Gets the most current value from the subscription source
         /// </summary>
-        public decimal RealtimePrice { get; protected set; }
+        public decimal RealtimePrice { get; set; }
 
         /// <summary>
         /// Gets true if this subscription is finished, false otherwise
@@ -64,17 +74,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         public bool EndOfStream { get; private set; }
 
         /// <summary>
-        /// Gets true if the user explicitly defined this subscription, false if the
-        /// system generated through some mechanism (universe selection, currency feeds, ect)
+        /// Gets true if this subscription is used in universe selection
         /// </summary>
-        public bool IsUserDefined { get; private set; }
-
-        /// <summary>
-        /// Gets true if this subscription is used to produce dates for a given market's universe
-        /// selection logic. Data from this subscription is never intended to be forwarded into
-        /// an algorithm
-        /// </summary>
-        public bool IsFundamentalSubscription { get; private set; }
+        public bool IsUniverseSelectionSubscription { get; private set; }
 
         /// <summary>
         /// Gets the start time of this subscription in UTC
@@ -87,23 +89,31 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         public DateTime UtcEndTime { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Subscription"/> class
+        /// Initializes a new instance of the <see cref="Subscription"/> class with a universe
         /// </summary>
+        /// <param name="universe">Specified for universe subscriptions</param>
         /// <param name="security">The security this subscription is for</param>
         /// <param name="enumerator">The subscription's data source</param>
+        /// <param name="timeZoneOffsetProvider">The offset provider used to convert data local times to utc</param>
         /// <param name="utcStartTime">The start time of the subscription</param>
         /// <param name="utcEndTime">The end time of the subscription</param>
-        /// <param name="isUserDefined">True if the user explicitly defined this subscription, false otherwise</param>
-        /// <param name="isFundamentalSubscription">True if this subscription is used to define the times to perform universe selection
-        /// for a specific market, false for all other subscriptions</param>
-        public Subscription(Security security, IEnumerator<BaseData> enumerator, DateTime utcStartTime, DateTime utcEndTime, bool isUserDefined, bool isFundamentalSubscription)
+        /// <param name="isUniverseSelectionSubscription">True if this is a subscription for universe selection,
+        /// that is, the configuration is used to produce the used to perform universe selection, false for a
+        /// normal data subscription, i.e, SPY</param>
+        public Subscription(Universe universe,
+            Security security,
+            IEnumerator<BaseData> enumerator,
+            TimeZoneOffsetProvider timeZoneOffsetProvider,
+            DateTime utcStartTime,
+            DateTime utcEndTime,
+            bool isUniverseSelectionSubscription)
         {
+            Universe = universe;
             Security = security;
             _enumerator = enumerator;
-            IsUserDefined = isUserDefined;
-            IsFundamentalSubscription = isFundamentalSubscription;
+            IsUniverseSelectionSubscription = isUniverseSelectionSubscription;
             Configuration = security.SubscriptionDataConfig;
-            OffsetProvider = new TimeZoneOffsetProvider(security.SubscriptionDataConfig.TimeZone, utcStartTime, utcEndTime);
+            OffsetProvider = timeZoneOffsetProvider;
 
             UtcStartTime = utcStartTime;
             UtcEndTime = utcEndTime;
@@ -126,10 +136,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var moveNext = _enumerator.MoveNext();
             EndOfStream = !moveNext;
             Current = _enumerator.Current;
-            if (Current != null)
-            {
-                RealtimePrice = Current.Value;
-            }
             return moveNext;
         }
 

@@ -41,7 +41,15 @@ namespace QuantConnect.Util
         {
             get { return !_processingCompletedEvent.IsSet; }
         }
- 
+
+        /// <summary>
+        /// Gets the number of items held within this collection
+        /// </summary>
+        public int Count
+        {
+            get { return _collection.Count; }
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="BusyBlockingCollection{T}"/> class
         /// with a bounded capacity of <see cref="int.MaxValue"/>
@@ -175,7 +183,19 @@ namespace QuantConnect.Util
                 T item;
 
                 // check to see if something is immediately available
-                if (_collection.TryTake(out item, 0, cancellationToken))
+                bool tookItem;
+
+                try
+                {
+                    tookItem = _collection.TryTake(out item, 0, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // if the operation was canceled, just bail on the enumeration
+                    yield break;
+                }
+
+                if (tookItem)
                 {
                     // something was immediately available, emit it
                     yield return item;
@@ -197,7 +217,6 @@ namespace QuantConnect.Util
                     }
                 }
 
-                bool tookItem;
                 try
                 {
                     // now block until something is available

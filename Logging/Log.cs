@@ -14,9 +14,9 @@
 */
 
 using System;
-using System.Threading;
-using System.Text;
 using System.Collections;
+using System.Text;
+using System.Threading;
 
 namespace QuantConnect.Logging 
 {
@@ -121,6 +121,22 @@ namespace QuantConnect.Logging
             {
                 Console.WriteLine("Log.Trace(): Error writing trace: "  +err.Message);
             }
+        }
+
+        /// <summary>
+        /// Writes the message in normal text
+        /// </summary>
+        public static void Trace(string format, params object[] args)
+        {
+            Trace(string.Format(format, args));
+        }
+
+        /// <summary>
+        /// Writes the message in red
+        /// </summary>
+        public static void Error(string format, params object[] args)
+        {
+            Error(string.Format(format, args));
         }
 
         /// <summary>

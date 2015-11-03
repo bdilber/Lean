@@ -35,6 +35,68 @@ Lean outsourced key infrastructure management to plugins. The most important plu
 
 For more information on the system design and contributing please see the Lean Website Documentation.
 
+## Spinup Instructions ##
+
+### OS X
+
+Install [Mono for Mac](http://www.mono-project.com/docs/getting-started/install/mac/)
+
+Install [MonoDevelop](http://www.monodevelop.com/download/) or [Xamarin Studio](http://xamarin.com/studio) for your IDE. If you use MonoDevelop also install its [FSharp Plugin](http://addins.monodevelop.com/Project/Index/48).
+
+OSX does not fully support Visual Basic or F#. You will need to remove these projects from the solution for them to build properly. Alternatively for Visual Basic modify the target framework as shown [here](https://groups.google.com/forum/#!topic/lean-engine/uR94evlM01g).
+
+Clone the repo:
+```
+git clone git@github.com:QuantConnect/Lean.git
+cd Lean
+```
+
+In OS X `mdtool` is not added to the PATH environment. Either set up the PATH manually or reference the binary directly.
+
+If you are running Xamarin Studio:
+```
+/Applications/Xamarin\ Studio.app/Contents/MacOS/mdtool build
+```
+
+If you are running MonoDevelop:
+```
+/Applications/MonoDevelop.app/Contents/MacOS/mdtool build
+```
+
+Run the compiled `exe` file. For the time being you need to run the `exe` in the same path as your current working directory:
+```
+cd Lean/Engine/bin/Debug
+mono ./QuantConnect.Lean.exe
+```
+### Linux (Debian, Ubuntu)
+
+Setup Mono GPG signing key ([instructions here](http://www.mono-project.com/docs/getting-started/install/linux/#usage)).
+
+Install dependencies:
+```
+sudo apt-get install mono-complete mono-vbnc monodevelop fsharp
+```
+Clone the repo then compile:
+```
+git clone git@github.com:QuantConnect/Lean.git
+cd Lean
+mdtool build
+```
+
+Run the compiled `exe` file. For the time being you need to run the `exe` in the same path as your current working directory:
+```
+cd Lean/Engine/bin/Debug
+./QuantConnect.Lean.exe
+```
+
+### Windows
+
+- Install [Visual Studio](https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx)
+- Open `QuantConnect.Lean.sln` in Visual Studio
+- Press `ctrl-f5` to run without debugging.
+By default Visual Studio includes NuGet, if your version cannot find DLL references, install [Nuget](https://www.nuget.org/) and build again. 
+
+
 ## Issues and Feature Requests ##
 
 Please submit bugs and feature requests as an issue to the [Lean Repository][5]. Before submitting an issue please read others to ensure it is not a duplicate.

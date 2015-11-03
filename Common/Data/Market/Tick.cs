@@ -32,7 +32,7 @@ namespace QuantConnect.Data.Market
         public TickType TickType = TickType.Trade;
 
         /// <summary>
-        /// Quantity of the tick sale or quote offer.
+        /// Quantity exchanged in a trade.
         /// </summary>
         public int Quantity = 0;
 
@@ -74,11 +74,21 @@ namespace QuantConnect.Data.Market
             }
         }
 
+        /// <summary>
+        /// Size of bid quote.
+        /// </summary>
+        public long BidSize = 0;
+
+        /// <summary>
+        /// Size of ask quote.
+        /// </summary>
+        public long AskSize = 0;
+
         //In Base Class: Alias of Closing:
         //public decimal Price;
 
         //Symbol of Asset.
-        //In Base Class: public string Symbol;
+        //In Base Class: public Symbol Symbol;
 
         //In Base Class: DateTime Of this TradeBar
         //public DateTime Time;
@@ -91,12 +101,14 @@ namespace QuantConnect.Data.Market
             Value = 0;
             Time = new DateTime();
             DataType = MarketDataType.Tick;
-            Symbol = "";
+            Symbol = Symbol.Empty;
             TickType = TickType.Trade;
             Quantity = 0;
             Exchange = "";
             SaleCondition = "";
             Suspicious = false;
+            BidSize = 0;
+            AskSize = 0;
         }
 
         /// <summary>
@@ -115,6 +127,8 @@ namespace QuantConnect.Data.Market
             Quantity = original.Quantity;
             Suspicious = original.Suspicious;
             DataType = MarketDataType.Tick;
+            BidSize = original.BidSize;
+            AskSize = original.AskSize;
         }
 
         /// <summary>
@@ -125,7 +139,7 @@ namespace QuantConnect.Data.Market
         /// <param name="symbol">Underlying currency pair we're trading</param>
         /// <param name="bid">FX tick bid value</param>
         /// <param name="ask">FX tick ask value</param>
-        public Tick(DateTime time, string symbol, decimal bid, decimal ask)
+        public Tick(DateTime time, Symbol symbol, decimal bid, decimal ask)
         {
             DataType = MarketDataType.Tick;
             Time = time;
@@ -145,7 +159,7 @@ namespace QuantConnect.Data.Market
         /// <param name="bid">Bid value</param>
         /// <param name="ask">Ask value</param>
         /// <param name="last">Last trade price</param>
-        public Tick(DateTime time, string symbol, decimal last, decimal bid, decimal ask)
+        public Tick(DateTime time, Symbol symbol, decimal last, decimal bid, decimal ask)
         {
             DataType = MarketDataType.Tick;
             Time = time;
@@ -161,7 +175,7 @@ namespace QuantConnect.Data.Market
         /// </summary>
         /// <param name="symbol">Symbol for underlying asset</param>
         /// <param name="line">CSV line of data from FXCM</param>
-        public Tick(string symbol, string line)
+        public Tick(Symbol symbol, string line)
         {
             var csv = line.Split(',');
             DataType = MarketDataType.Tick;
@@ -179,7 +193,7 @@ namespace QuantConnect.Data.Market
         /// <param name="symbol">Symbol for underlying asset</param>
         /// <param name="line">CSV line of data from QC tick csv</param>
         /// <param name="baseDate">The base date of the tick</param>
-        public Tick(string symbol, string line, DateTime baseDate)
+        public Tick(Symbol symbol, string line, DateTime baseDate)
         {
             var csv = line.Split(',');
             DataType = MarketDataType.Tick;
@@ -282,7 +296,7 @@ namespace QuantConnect.Data.Market
                 dataType = TickType.Quote;
             }
 
-            var symbol = string.IsNullOrEmpty(config.MappedSymbol) ? config.Symbol : config.MappedSymbol;
+            var symbol = string.IsNullOrEmpty(config.MappedSymbol) ? config.Symbol.Permtick : config.MappedSymbol;
             var securityType = config.SecurityType.ToString().ToLower();
             var market = config.Market.ToLower();
             var resolution = config.Resolution.ToString().ToLower();
@@ -302,11 +316,15 @@ namespace QuantConnect.Data.Market
         /// <param name="bidPrice">Current bid price</param>
         /// <param name="askPrice">Current asking price</param>
         /// <param name="volume">Volume of this trade</param>
-        public override void Update(decimal lastTrade, decimal bidPrice, decimal askPrice, decimal volume)
+        /// <param name="bidSize">The size of the current bid, if available</param>
+        /// <param name="askSize">The size of the current ask, if available</param>
+        public override void Update(decimal lastTrade, decimal bidPrice, decimal askPrice, decimal volume, decimal bidSize, decimal askSize)
         {
             Value = lastTrade;
             BidPrice = bidPrice;
             AskPrice = askPrice;
+            BidSize = (long) bidSize;
+            AskSize = (long) askSize;
             Quantity = Convert.ToInt32(volume);
         }
 
@@ -316,8 +334,8 @@ namespace QuantConnect.Data.Market
         public bool IsValid()
         {
             return (TickType == TickType.Trade && LastPrice > 0.0m && Quantity > 0) ||
-                   (TickType == TickType.Quote && AskPrice > 0.0m && Quantity > 0) ||
-                   (TickType == TickType.Quote && BidPrice > 0.0m && Quantity > 0);
+                   (TickType == TickType.Quote && AskPrice > 0.0m && AskSize > 0) ||
+                   (TickType == TickType.Quote && BidPrice > 0.0m && BidSize > 0);
         }
 
         /// <summary>

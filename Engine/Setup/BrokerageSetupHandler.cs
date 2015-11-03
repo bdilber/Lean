@@ -96,7 +96,7 @@ namespace QuantConnect.Lean.Engine.Setup
 
                 // if there's more than one then check configuration for which one we should use
                 var algorithmName = Config.Get("algorithm-type-name");
-                return names.Single(x => x.Contains(algorithmName));
+                return names.Single(x => x.Contains("." + algorithmName));
             });
 
             var complete = loader.TryCreateAlgorithmInstanceWithIsolator(assemblyPath, out algorithm, out error);
@@ -149,9 +149,11 @@ namespace QuantConnect.Lean.Engine.Setup
             {
                 Log.Trace("BrokerageSetupHandler.Setup(): Initializing algorithm...");
 
+                resultHandler.SendStatusUpdate(job.AlgorithmId, AlgorithmStatus.Initializing, "Initializing algorithm...");
+
                 //Execute the initialize code:
                 var isolator = new Isolator();
-                var initializeComplete = isolator.ExecuteWithTimeLimit(TimeSpan.FromSeconds(10), () =>
+                var initializeComplete = isolator.ExecuteWithTimeLimit(TimeSpan.FromSeconds(300), () =>
                 {
                     try
                     {
@@ -282,18 +284,32 @@ namespace QuantConnect.Lean.Engine.Setup
                 {
                     // populate the algorithm with the account's current holdings
                     var holdings = brokerage.GetAccountHoldings();
+                    var supportedSecurityTypes = new HashSet<SecurityType> {SecurityType.Equity, SecurityType.Forex};
                     var minResolution = new Lazy<Resolution>(() => algorithm.Securities.Min(x => x.Value.Resolution));
                     foreach (var holding in holdings)
                     {
+                        var symbol = new Symbol(holding.Symbol);
                         Log.Trace("BrokerageSetupHandler.Setup(): Has existing holding: " + holding);
-                        if (!algorithm.Portfolio.ContainsKey(holding.Symbol))
+
+                        // verify existing holding security type
+                        if (!supportedSecurityTypes.Contains(holding.Type))
+                        {
+                            Log.Error("BrokerageSetupHandler.Setup(): Unsupported security type: " + holding.Type + "-" + holding.Symbol.ToUpper());
+                            AddInitializationError("Found unsupported security type in existing brokerage holdings: " + holding.Type + ". " +
+                                "QuantConnect currently supports the following security types: " + string.Join(",", supportedSecurityTypes));
+
+                            // keep aggregating these errors
+                            continue;
+                        }
+
+                        if (!algorithm.Portfolio.ContainsKey(symbol))
                         {
                             Log.Trace("BrokerageSetupHandler.Setup(): Adding unrequested security: " + holding.Symbol);
                             // for items not directly requested set leverage to 1 and at the min resolution
-                            algorithm.AddSecurity(holding.Type, holding.Symbol, minResolution.Value, null, true, 1.0m, false);
+                            algorithm.AddSecurity(holding.Type, symbol, minResolution.Value, null, true, 1.0m, false);
                         }
-                        algorithm.Portfolio[holding.Symbol].SetHoldings(holding.AveragePrice, (int) holding.Quantity);
-                        algorithm.Securities[holding.Symbol].SetMarketPrice(new TradeBar
+                        algorithm.Portfolio[symbol].SetHoldings(holding.AveragePrice, (int) holding.Quantity);
+                        algorithm.Securities[symbol].SetMarketPrice(new TradeBar
                         {
                             Time = DateTime.Now,
                             Open = holding.MarketPrice,
@@ -301,7 +317,7 @@ namespace QuantConnect.Lean.Engine.Setup
                             Low = holding.MarketPrice,
                             Close = holding.MarketPrice,
                             Volume = 0,
-                            Symbol = holding.Symbol,
+                            Symbol = symbol,
                             DataType = MarketDataType.TradeBar
                         });
                     }
@@ -333,34 +349,6 @@ namespace QuantConnect.Lean.Engine.Setup
             }
 
             return Errors.Count == 0;
-        }
-
-        /// <summary>
-        /// Setup the error handler for the brokerage errors.
-        /// </summary>
-        /// <param name="results">Result handler.</param>
-        /// <param name="brokerage">Brokerage endpoint.</param>
-        /// <returns>True on successfully setting up the error handlers.</returns>
-        public bool SetupErrorHandler(IResultHandler results, IBrokerage brokerage)
-        {
-            brokerage.Message += (sender, message) =>
-            {
-                // based on message type dispatch to result handler
-                switch (message.Type)
-                {
-                    case BrokerageMessageType.Information:
-                        results.DebugMessage("Brokerage Info: " + message.Message);
-                        break;
-                    case BrokerageMessageType.Warning:
-                        results.ErrorMessage("Brokerage Warning: " + message.Message);
-                        break;
-                    case BrokerageMessageType.Error:
-                        results.ErrorMessage("Brokerage Error: " + message.Message);
-                        _algorithm.RunTimeError = new Exception(message.Message);
-                        break;
-                }
-            };
-            return true;
         }
 
         /// <summary>

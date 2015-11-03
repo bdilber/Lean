@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Timers;
 using QuantConnect.Algorithm;
 using QuantConnect.AlgorithmFactory;
 using QuantConnect.Brokerages.Backtesting;
@@ -160,10 +161,9 @@ namespace QuantConnect.Lean.Engine.Setup
                 Errors.Add("Algorithm start date was never set");
                 return false;
             }
-            
-            //Execute the initialize code:
+
             var isolator = new Isolator();
-            var initializeComplete = isolator.ExecuteWithTimeLimit(TimeSpan.FromSeconds(10), () =>
+            var initializeComplete = isolator.ExecuteWithTimeLimit(TimeSpan.FromMinutes(5), () =>
             {
                 try
                 {
@@ -172,7 +172,7 @@ namespace QuantConnect.Lean.Engine.Setup
                     //Set the backtest level asset ram allocation limits
                     algorithm.SetAssetLimits(500, 100, 30);
                     //Set the algorithm time before we even initialize:
-                    algorithm.SetDateTime(job.PeriodStart);
+                    algorithm.SetDateTime(job.PeriodStart.ConvertToUtc(algorithm.TimeZone));
                     //Set the source impl for the event scheduling
                     algorithm.Schedule.SetEventSchedule(realTimeHandler);
                     //Initialise the algorithm, get the required data:
@@ -265,18 +265,6 @@ namespace QuantConnect.Lean.Engine.Setup
             }
 
             return TimeSpan.FromSeconds(maxRunTime);
-        }
-
-        /// <summary>
-        /// Setup error handlers for the backtest.
-        /// </summary>
-        /// <param name="results">Result handler</param>
-        /// <param name="brokerage">Brokerage interface</param>
-        /// <returns>Boolean true on successful setup</returns>
-        /// <remarks>Not used in a backtesting setup handler. This is primarily for setting up brokerage error handler functions</remarks>
-        public bool SetupErrorHandler(IResultHandler results, IBrokerage brokerage)
-        {
-            return true;
         }
 
         /// <summary>

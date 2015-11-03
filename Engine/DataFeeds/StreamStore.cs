@@ -16,10 +16,8 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Threading;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
-using QuantConnect.Logging;
 using QuantConnect.Securities;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -70,7 +68,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 working = CreateNewTradeBar(tick.LastPrice, tick.Quantity);
                 _queue.Enqueue(working);
             }
-            working.Update(tick.LastPrice, tick.BidPrice, tick.AskPrice, tick.Quantity);
+            working.Update(tick.LastPrice, tick.BidPrice, tick.AskPrice, tick.Quantity, tick.BidSize, tick.AskSize);
         }
 
         /// <summary>
@@ -110,7 +108,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     if (_security.Exchange.IsOpenDuringBar(barStartTime, localTriggerTime, _config.ExtendedMarketHours))
                     {
                         bar = _previous.Clone(true);
-                        bar.Time = barStartTime;
+                        bar.Time = barStartTime.ExchangeRoundDown(_increment, _security.Exchange.Hours, _security.IsExtendedMarketHours);
                     }
                 }
             }
