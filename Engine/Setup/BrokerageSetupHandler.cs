@@ -79,6 +79,7 @@ namespace QuantConnect.Lean.Engine.Setup
         /// Create a new instance of an algorithm from a physical dll path.
         /// </summary>
         /// <param name="assemblyPath">The path to the assembly's location</param>
+        /// <param name="language">The algorithm's language</param>
         /// <returns>A new instance of IAlgorithm, or throws an exception if there was an error</returns>
         public IAlgorithm CreateAlgorithmInstance(string assemblyPath, Language language)
         {
@@ -219,11 +220,12 @@ namespace QuantConnect.Lean.Engine.Setup
 
                 brokerage.Message += brokerageOnMessage;
 
-                // set the transaction models base on the brokerage properties
-                SetupHandler.UpdateTransactionModels(algorithm, algorithm.BrokerageModel);
+                // set the transaction and settlement models based on the brokerage properties
+                SetupHandler.UpdateModels(algorithm, algorithm.BrokerageModel);
                 algorithm.Transactions.SetOrderProcessor(transactionHandler);
                 algorithm.PostInitialize();
 
+                Log.Trace("BrokerageSetupHandler.Setup(): Connecting to brokerage...");
                 try
                 {
                     // this can fail for various reasons, such as already being logged in somewhere else
@@ -244,6 +246,7 @@ namespace QuantConnect.Lean.Engine.Setup
                     return false;
                 }
 
+                Log.Trace("BrokerageSetupHandler.Setup(): Fetching cash balance from brokerage...");
                 try
                 {
                     // set the algorithm's cash balance for each currency
@@ -261,6 +264,7 @@ namespace QuantConnect.Lean.Engine.Setup
                     return false;
                 }
 
+                Log.Trace("BrokerageSetupHandler.Setup(): Fetching open orders from brokerage...");
                 try
                 {
                     // populate the algorithm with the account's outstanding orders
@@ -280,6 +284,7 @@ namespace QuantConnect.Lean.Engine.Setup
                     return false;
                 }
 
+                Log.Trace("BrokerageSetupHandler.Setup(): Fetching holdings from brokerage...");
                 try
                 {
                     // populate the algorithm with the account's current holdings
@@ -328,6 +333,8 @@ namespace QuantConnect.Lean.Engine.Setup
                     AddInitializationError("Error getting account holdings from brokerage: " + err.Message);
                     return false;
                 }
+
+                Log.Trace("BrokerageSetupHandler.Setup(): Ensuring currency data feeds present...");
 
                 // call this after we've initialized everything from the brokerage since we may have added some holdings/currencies
                 algorithm.Portfolio.CashBook.EnsureCurrencyDataFeeds(algorithm.Securities, algorithm.SubscriptionManager, SecurityExchangeHoursProvider.FromDataFolder());
