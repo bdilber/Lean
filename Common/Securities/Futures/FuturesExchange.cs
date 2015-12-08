@@ -40,7 +40,7 @@ namespace QuantConnect.Securities.Futures
         /// derived from the market-hours-database for the FXCM Forex market
         /// </summary>
         public FuturesExchange()
-            : base(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Future))
+            : base(MarketHoursDatabase.FromDataFolder().GetExchangeHours(Market.USA, null, SecurityType.Future, TimeZones.NewYork))
         {
         }
 

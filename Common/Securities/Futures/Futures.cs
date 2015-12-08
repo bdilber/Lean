@@ -41,16 +41,16 @@ namespace QuantConnect.Securities.Futures
         /// <summary>
         /// Constructor for the Futures security
         /// </summary>
-        public Futures(SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1, bool isDynamicallyLoadedData = false)
-            : this(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours(config), config, initialMarginRequirement, maintenanceMarginRequirement, contractSize, isDynamicallyLoadedData)
+        public Futures(SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1)
+            : this(MarketHoursDatabase.FromDataFolder().GetExchangeHours(config), config, initialMarginRequirement, maintenanceMarginRequirement, contractSize)
         {
         }
 
         /// <summary>
         /// Constructor for the Futures security
         /// </summary>
-        public Futures(SecurityExchangeHours exchangeHours, SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1, bool isDynamicallyLoadedData = false) 
-            : base(exchangeHours, config, 1, isDynamicallyLoadedData) 
+        public Futures(SecurityExchangeHours exchangeHours, SubscriptionDataConfig config, decimal initialMarginRequirement, decimal maintenanceMarginRequirement, decimal contractSize = 1) 
+            : base(exchangeHours, config, 1) 
         {
             _contractSize = contractSize;
             _initialMarginRequirement = initialMarginRequirement;

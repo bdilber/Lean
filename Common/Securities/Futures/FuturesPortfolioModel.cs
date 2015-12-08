@@ -93,14 +93,13 @@ namespace QuantConnect.Securities.Futures
 
                 //Set the results back to the vehicle.
 
-                portfolio.CashBook[CashBook.AccountCurrency].Quantity += initialMarginDifference + lastTradeProfit - feeThisOrder;
+                portfolio.CashBook[CashBook.AccountCurrency].AddAmount(initialMarginDifference + lastTradeProfit - feeThisOrder);
                 futures.Holdings.SetHoldings(averageHoldingsPrice, totalQuantity);
             }
             catch (Exception err)
             {
                 Log.Error("SecurityPortfolioManager.ProcessFill(orderEvent): " + err.Message);
             }
-
         }
     }
 }
