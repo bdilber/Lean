@@ -18,10 +18,10 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using NodaTime;
 using QuantConnect.Data;
+using QuantConnect.Data.Auxiliary;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
 using QuantConnect.Lean.Engine.DataFeeds;
@@ -45,6 +45,7 @@ namespace QuantConnect.Lean.Engine.HistoricalData
     public class SubscriptionDataReaderHistoryProvider : IHistoryProvider
     {
         private int _dataPointCount;
+        private IMapFileProvider _mapFileProvider;
 
         /// <summary>
         /// Gets the total number of data points emitted by this history provider
@@ -58,10 +59,11 @@ namespace QuantConnect.Lean.Engine.HistoricalData
         /// Initializes this history provider to work for the specified job
         /// </summary>
         /// <param name="job">The job</param>
+        /// <param name="mapFileProvider">Provider used to get a map file resolver to handle equity mapping</param>
         /// <param name="statusUpdate">Function used to send status updates</param>
-        public void Initialize(AlgorithmNodePacket job, Action<int> statusUpdate)
+        public void Initialize(AlgorithmNodePacket job, IMapFileProvider mapFileProvider, Action<int> statusUpdate)
         {
-            // this implement doesn't need job data or to send status updates
+            _mapFileProvider = mapFileProvider;
         }
 
         /// <summary>
@@ -94,11 +96,10 @@ namespace QuantConnect.Lean.Engine.HistoricalData
             end = end.ConvertFromUtc(request.ExchangeHours.TimeZone);
 
             var config = new SubscriptionDataConfig(request.DataType, 
-                request.SecurityType, 
                 request.Symbol, 
                 request.Resolution, 
-                request.Market, 
                 request.TimeZone, 
+                request.ExchangeHours.TimeZone, 
                 request.FillForwardResolution.HasValue, 
                 request.IncludeExtendedMarketHours, 
                 false, 
@@ -111,6 +112,7 @@ namespace QuantConnect.Lean.Engine.HistoricalData
                 start, 
                 end, 
                 ResultHandlerStub.Instance,
+                config.SecurityType == SecurityType.Equity ? _mapFileProvider.Get(config.Market) : MapFileResolver.Empty,
                 Time.EachTradeableDay(request.ExchangeHours, start, end), 
                 false,
                 includeAuxilliaryData: false
@@ -139,7 +141,7 @@ namespace QuantConnect.Lean.Engine.HistoricalData
                 return data.EndTime > start;
             });
 
-            var timeZoneOffsetProvider = new TimeZoneOffsetProvider(security.SubscriptionDataConfig.TimeZone, start, end);
+            var timeZoneOffsetProvider = new TimeZoneOffsetProvider(security.Exchange.TimeZone, start, end);
             return new Subscription(null, security, reader, timeZoneOffsetProvider, start, end, false);
         }
 

@@ -17,7 +17,9 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
+using NodaTime;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using QuantConnect.Logging;
@@ -28,12 +30,17 @@ namespace QuantConnect.Securities
     /// Enumerable security management class for grouping security objects into an array and providing any common properties.
     /// </summary>
     /// <remarks>Implements IDictionary for the index searching of securities by symbol</remarks>
-    public class SecurityManager : IDictionary<Symbol, Security>
+    public class SecurityManager : IDictionary<Symbol, Security>, INotifyCollectionChanged
     {
+        /// <summary>
+        /// Event fired when a security is added or removed from this collection
+        /// </summary>
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
+
         private readonly TimeKeeper _timeKeeper;
 
         //Internal dictionary implementation:
-        private readonly IDictionary<Symbol, Security> _securityManager;
+        private readonly ConcurrentDictionary<Symbol, Security> _securityManager;
         private int _minuteLimit = 500;
         private int _minuteMemory = 2;
         private int _secondLimit = 100;
@@ -90,12 +97,15 @@ namespace QuantConnect.Securities
         /// <remarks>IDictionary implementation</remarks>
         /// <param name="symbol">symbol for security we're trading</param>
         /// <param name="security">security object</param>
-        /// <seealso cref="Add(string,Resolution,bool)"/>
+        /// <seealso cref="Add(Security)"/>
         public void Add(Symbol symbol, Security security)
         {
             CheckResolutionCounts(security.Resolution);
-            security.SetLocalTimeKeeper(_timeKeeper.GetLocalTimeKeeper(security.SubscriptionDataConfig.TimeZone));
-            _securityManager.Add(symbol, security);
+            if (_securityManager.TryAdd(symbol, security))
+            {
+                security.SetLocalTimeKeeper(_timeKeeper.GetLocalTimeKeeper(security.Exchange.TimeZone));
+                OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, security));
+            }
         }
 
         /// <summary>
@@ -115,7 +125,7 @@ namespace QuantConnect.Securities
         public void Add(KeyValuePair<Symbol, Security> pair)
         {
             CheckResolutionCounts(pair.Value.Resolution);
-            _securityManager.Add(pair.Key, pair.Value);
+            Add(pair.Key, pair.Value);
         }
 
         /// <summary>
@@ -157,7 +167,7 @@ namespace QuantConnect.Securities
         /// <remarks>IDictionary implementation</remarks>
         public void CopyTo(KeyValuePair<Symbol, Security>[] array, int number)
         {
-            _securityManager.CopyTo(array, number);
+            ((IDictionary<Symbol, Security>)_securityManager).CopyTo(array, number);
         }
 
         /// <summary>
@@ -175,7 +185,7 @@ namespace QuantConnect.Securities
         /// <remarks>IDictionary implementation</remarks>
         public bool IsReadOnly
         {
-            get { return _securityManager.IsReadOnly;  }
+            get { return false;  }
         }
 
         /// <summary>
@@ -186,7 +196,7 @@ namespace QuantConnect.Securities
         /// <returns>Boolean true on success</returns>
         public bool Remove(KeyValuePair<Symbol, Security> pair)
         {
-            return _securityManager.Remove(pair);
+            return Remove(pair.Key);
         }
 
         /// <summary>
@@ -196,7 +206,13 @@ namespace QuantConnect.Securities
         /// <returns>true success</returns>
         public bool Remove(Symbol symbol)
         {
-            return _securityManager.Remove(symbol);
+            Security security;
+            if (_securityManager.TryRemove(symbol, out security))
+            {
+                OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, security));
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -253,21 +269,59 @@ namespace QuantConnect.Securities
         /// Indexer method for the security manager to access the securities objects by their symbol.
         /// </summary>
         /// <remarks>IDictionary implementation</remarks>
-        /// <param name="symbol">Symbol string indexer</param>
+        /// <param name="symbol">Symbol object indexer</param>
         /// <returns>Security</returns>
         public Security this[Symbol symbol]
         {
-            get
+            get 
             {
                 if (!_securityManager.ContainsKey(symbol))
                 {
-                    throw new Exception("This asset symbol (" + symbol.Permtick + ") was not found in your security list. Please add this security or check it exists before using it with 'Securities.ContainsKey(\"" + symbol.Permtick + "\")'");
+                    throw new Exception(string.Format("This asset symbol ({0}) was not found in your security list. Please add this security or check it exists before using it with 'Securities.ContainsKey(\"{1}\")'", symbol, SymbolCache.GetTicker(symbol)));
                 } 
                 return _securityManager[symbol];
             }
-            set 
+            set
             {
-                _securityManager[symbol] = value;
+                Security existing;
+                if (_securityManager.TryGetValue(symbol, out existing) && existing != value)
+                {
+                    throw new ArgumentException("Unable to over write existing Security: " + symbol.ToString());
+                }
+
+                // no security exists for the specified symbol key, add it now
+                if (existing == null)
+                {
+                    Add(symbol, value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Indexer method for the security manager to access the securities objects by their symbol.
+        /// </summary>
+        /// <remarks>IDictionary implementation</remarks>
+        /// <param name="ticker">string ticker symbol indexer</param>
+        /// <returns>Security</returns>
+        public Security this[string ticker]
+        {
+            get
+            {
+                Symbol symbol;
+                if (!SymbolCache.TryGetSymbol(ticker, out symbol))
+                {
+                    throw new Exception(string.Format("This asset symbol ({0}) was not found in your security list. Please add this security or check it exists before using it with 'Securities.ContainsKey(\"{0}\")'", ticker));
+                }
+                return this[symbol];
+            }
+            set
+            {
+                Symbol symbol;
+                if (!SymbolCache.TryGetSymbol(ticker, out symbol))
+                {
+                    throw new Exception(string.Format("This asset symbol ({0}) was not found in your security list. Please add this security or check it exists before using it with 'Securities.ContainsKey(\"{0}\")'", ticker));
+                }
+                this[symbol] = value;
             }
         }
 
@@ -289,7 +343,7 @@ namespace QuantConnect.Securities
             } 
             catch (Exception err) 
             {
-                Log.Error("Algorithm.Market.GetResolutionCount(): " + err.Message);
+                Log.Error(err);
             }
             return count;
         }
@@ -306,6 +360,16 @@ namespace QuantConnect.Securities
             _secondLimit = second;
             _tickLimit = tick;
             _maxRamEstimate = Math.Max(Math.Max(MinuteLimit * _minuteMemory, SecondLimit * _secondMemory), TickLimit * _tickMemory);
+        }
+
+        /// <summary>
+        /// Event invocator for the <see cref="CollectionChanged"/> event
+        /// </summary>
+        /// <param name="changedEventArgs">Event arguments for the <see cref="CollectionChanged"/> event</param>
+        protected virtual void OnCollectionChanged(NotifyCollectionChangedEventArgs changedEventArgs)
+        {
+            var handler = CollectionChanged;
+            if (handler != null) handler(this, changedEventArgs);
         }
 
         /// <summary>
@@ -351,51 +415,41 @@ namespace QuantConnect.Securities
             return _minuteMemory * minute + _secondMemory * second + _tickMemory * tick;
         }
 
-
         /// <summary>
         /// Creates a security and matching configuration. This applies the default leverage if
-        /// leverage is less than or equal to zero
+        /// leverage is less than or equal to zero.
+        /// This method also add the new symbol mapping to the <see cref="SymbolCache"/>
         /// </summary>
-        public static Security CreateSecurity(SecurityPortfolioManager securityPortfolioManager,
+        public static Security CreateSecurity(Type factoryType,
+            SecurityPortfolioManager securityPortfolioManager,
             SubscriptionManager subscriptionManager,
-            SecurityExchangeHoursProvider securityExchangeHoursProvider,
-            SecurityType securityType,
+            SecurityExchangeHours exchangeHours,
+            DateTimeZone dataTimeZone,
             Symbol symbol,
             Resolution resolution,
-            string market,
             bool fillDataForward,
             decimal leverage,
             bool extendedMarketHours,
             bool isInternalFeed,
             bool isCustomData)
         {
-            //If it hasn't been set, use some defaults based on the portfolio type:
+            var sid = symbol.ID;
+
+            //If it hasn't been set, use some defaults based on the security type
             if (leverage <= 0)
             {
-                switch (securityType)
-                {
-                    case SecurityType.Equity:
-                        leverage = 2; //Cash Ac. = 1, RegT Std = 2 or PDT = 4.
-                        break;
-                    case SecurityType.Forex:
-                        leverage = 50;
-                        break;
-                }
+                if (sid.SecurityType == SecurityType.Equity) leverage = 2;
+                else if (sid.SecurityType == SecurityType.Forex) leverage = 50;
+                // default to 1 for everything else
+                else leverage = 1m;
             }
 
-            if (market == null)
-            {
-                // set default values
-                if (securityType == SecurityType.Forex) market = "fxcm";
-                else if (securityType == SecurityType.Equity) market = "usa";
-                else market = "usa";
-            }
+            // add the symbol to our cache
+            SymbolCache.Set(symbol.Value, symbol);
 
             //Add the symbol to Data Manager -- generate unified data streams for algorithm events
-            var exchangeHours = securityExchangeHoursProvider.GetExchangeHours(market, symbol, securityType);
-            var tradeBarType = typeof(TradeBar);
-            var type = resolution == Resolution.Tick ? typeof(Tick) : tradeBarType;
-            var config = subscriptionManager.Add(type, securityType, symbol, resolution, market, exchangeHours.TimeZone, isCustomData, fillDataForward, extendedMarketHours, isInternalFeed);
+            var config = subscriptionManager.Add(factoryType, symbol, resolution, dataTimeZone, exchangeHours.TimeZone, isCustomData, fillDataForward,
+                extendedMarketHours, isInternalFeed);
 
             Security security;
             switch (config.SecurityType)
@@ -429,6 +483,29 @@ namespace QuantConnect.Securities
             }
             return security;
         }
-    } // End Algorithm Security Manager Class
 
-} // End QC Namespace
+        /// <summary>
+        /// Creates a security and matching configuration. This applies the default leverage if
+        /// leverage is less than or equal to zero.
+        /// This method also add the new symbol mapping to the <see cref="SymbolCache"/>
+        /// </summary>
+        public static Security CreateSecurity(SecurityPortfolioManager securityPortfolioManager,
+            SubscriptionManager subscriptionManager,
+            MarketHoursDatabase marketHoursDatabase,
+            Symbol symbol,
+            Resolution resolution,
+            bool fillDataForward,
+            decimal leverage,
+            bool extendedMarketHours,
+            bool isInternalFeed,
+            bool isCustomData)
+        {
+            var marketHoursDbEntry = marketHoursDatabase.GetEntry(symbol.ID.Market, symbol, symbol.ID.SecurityType);
+            var exchangeHours = marketHoursDbEntry.ExchangeHours;
+            var tradeBarType = typeof(TradeBar);
+            var type = resolution == Resolution.Tick ? typeof(Tick) : tradeBarType;
+            return CreateSecurity(type, securityPortfolioManager, subscriptionManager, exchangeHours, marketHoursDbEntry.DataTimeZone, symbol, resolution,
+                fillDataForward, leverage, extendedMarketHours, isInternalFeed, isCustomData);
+        }
+    }
+}

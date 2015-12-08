@@ -218,39 +218,44 @@ namespace QuantConnect.Data.Market
         {
             try
             {
-                var csv = line.Split(',');
                 DataType = MarketDataType.Tick;
 
                 // Which security type is this data feed:
                 switch (config.SecurityType)
-                { 
+                {
                     case SecurityType.Equity:
+                    {
+                        var csv = line.ToCsv(6);
                         Symbol = config.Symbol;
-                        Time = date.Date.AddMilliseconds(csv[0].ToInt64());
+                        Time = date.Date.AddMilliseconds(csv[0].ToInt64()).ConvertTo(config.DataTimeZone, config.ExchangeTimeZone);
                         Value = config.GetNormalizedPrice(csv[1].ToDecimal() / 10000m);
                         TickType = TickType.Trade;
                         Quantity = csv[2].ToInt32();
-                        if (csv.Length > 3)
+                        if (csv.Count > 3)
                         {
                             Exchange = csv[3];
                             SaleCondition = csv[4];
                             Suspicious = (csv[5] == "1");
                         }
                         break;
+                    }
 
                     case SecurityType.Forex:
+                    {
+                        var csv = line.ToCsv(3);
                         Symbol = config.Symbol;
                         TickType = TickType.Quote;
-                        Time = date.Date.AddMilliseconds(csv[0].ToInt64());
+                        Time = date.Date.AddMilliseconds(csv[0].ToInt64()).ConvertTo(config.DataTimeZone, config.ExchangeTimeZone);
                         BidPrice = csv[1].ToDecimal();
                         AskPrice = csv[2].ToDecimal();
                         Value = (BidPrice + AskPrice) / 2;
                         break;
+                    }
                 }
             }
             catch (Exception err)
             {
-                Log.Error("Error Generating Tick: " + err.Message);
+                Log.Error(err);
             }
         }
 
@@ -296,7 +301,7 @@ namespace QuantConnect.Data.Market
                 dataType = TickType.Quote;
             }
 
-            var symbol = string.IsNullOrEmpty(config.MappedSymbol) ? config.Symbol.Permtick : config.MappedSymbol;
+            var symbol = string.IsNullOrEmpty(config.MappedSymbol) ? config.Symbol.Value : config.MappedSymbol;
             var securityType = config.SecurityType.ToString().ToLower();
             var market = config.Market.ToLower();
             var resolution = config.Resolution.ToString().ToLower();

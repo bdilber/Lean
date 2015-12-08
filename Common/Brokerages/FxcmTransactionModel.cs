@@ -30,8 +30,16 @@ namespace QuantConnect.Brokerages
     /// <seealso cref="ISecurityTransactionModel"/>
     public class FxcmTransactionModel : SecurityTransactionModel
     {
-        private readonly HashSet<string> _groupCommissionSchedule1 = new HashSet<string> 
-            { "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "EURJPY", "GBPJPY" };
+        private readonly HashSet<Symbol> _groupCommissionSchedule1 = new HashSet<Symbol>
+        {
+            Symbol.Create("EURUSD", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("GBPUSD", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("USDJPY", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("USDCHF", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("AUDUSD", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("EURJPY", SecurityType.Forex, Market.FXCM),
+            Symbol.Create("GBPJPY", SecurityType.Forex, Market.FXCM),
+        };
 
         /// <summary>
         /// Initialise the transaction model class

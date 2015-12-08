@@ -75,23 +75,30 @@
     <Compile Include="Brokerages\Fxcm\FxcmBrokerageTests.cs" />
     <Compile Include="Brokerages\Fxcm\FxcmLimitOrderTestParameters.cs" />
     <Compile Include="Brokerages\Fxcm\FxcmStopMarketOrderTestParameters.cs" />
+    <Compile Include="Brokerages\Fxcm\FxcmSymbolMapperTests.cs" />
     <Compile Include="Brokerages\HoldingsProvider.cs" />
     <Compile Include="Brokerages\InteractiveBrokers\InteractiveBrokersBrokerageDataQueueHandlerTest.cs" />
     <Compile Include="Brokerages\InteractiveBrokers\InteractiveBrokersOrderTests.cs" />
+    <Compile Include="Brokerages\InteractiveBrokers\InteractiveBrokersSymbolMapperTests.cs" />
     <Compile Include="Brokerages\LimitOrderTestParameters.cs" />
     <Compile Include="Brokerages\MarketOrderTestParameters.cs" />
     <Compile Include="Brokerages\Oanda\OandaBrokerageTests.cs" />
+    <Compile Include="Brokerages\Oanda\OandaSymbolMapperTests.cs" />
     <Compile Include="Brokerages\OrderProvider.cs" />
     <Compile Include="Brokerages\OrderTestParameters.cs" />
     <Compile Include="Brokerages\StopLimitOrderTestParameters.cs" />
     <Compile Include="Brokerages\StopMarketOrderTestParameters.cs" />
     <Compile Include="Brokerages\Tradier\TradierBrokerageSerializationTests.cs" />
     <Compile Include="Brokerages\Tradier\TradierBrokerageTests.cs" />
+    <Compile Include="Common\Data\Auxiliary\LocalDiskMapFileProviderTests.cs" />
     <Compile Include="Common\Data\Market\BarTests.cs" />
     <Compile Include="Common\Data\Market\TickTests.cs" />
     <Compile Include="Common\Data\Market\TradeBarTests.cs" />
     <Compile Include="Common\Data\SliceTests.cs" />
     <Compile Include="Common\Data\SubscriptionDataSourceTests.cs" />
+    <Compile Include="Common\HoldingTests.cs" />
+    <Compile Include="Common\MarketTests.cs" />
+    <Compile Include="Common\Orders\OrderJsonConverterTests.cs" />
     <Compile Include="Common\Scheduling\DateRulesTests.cs" />
     <Compile Include="Common\Scheduling\ScheduledEventTests.cs" />
     <Compile Include="Common\Scheduling\TimeRulesTests.cs" />
@@ -103,10 +110,13 @@
     <Compile Include="Common\Securities\DelayedSettlementModelTests.cs" />
     <Compile Include="Common\Securities\ImmediateSettlementModelTests.cs" />
     <Compile Include="Common\Securities\LocalMarketHoursTests.cs" />
-    <Compile Include="Common\Securities\SecurityExchangeHoursProviderTests.cs" />
+    <Compile Include="Common\Securities\MarketHoursDatabaseTests.cs" />
     <Compile Include="Common\Securities\SecurityExchangeHoursTests.cs" />
+    <Compile Include="Common\Securities\SecurityIdentifierTests.cs" />
+    <Compile Include="Common\Securities\SecurityManagerTests.cs" />
     <Compile Include="Common\Securities\SecurityTransactionModelTests.cs" />
     <Compile Include="Common\SeriesTests.cs" />
+    <Compile Include="Common\SymbolCacheTests.cs" />
     <Compile Include="Common\SymbolTests.cs" />
     <Compile Include="Common\Statistics\TradeStatisticsTests.cs" />
     <Compile Include="Common\Statistics\TradeBuilderTests.cs" />
@@ -157,6 +167,7 @@
     <Compile Include="Indicators\StochasticTests.cs" />
     <Compile Include="Queues\FileCommandQueueHandlerTests.cs" />
     <Compile Include="RegressionTests.cs" />
+    <Compile Include="Symbols.cs" />
     <Compile Include="TestExtensions.cs" />
     <Compile Include="Indicators\LinearWeightedMovingAverageTests.cs" />
     <None Include="RegressionAlgorithms\Test_Cash.cs" />
@@ -231,6 +242,7 @@
     <Folder Include="API\" />
     <Folder Include="Messaging\" />
     <Folder Include="Tasks\" />
+    <Folder Include="UserInterface\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Algorithm.CSharp\QuantConnect.Algorithm.CSharp.csproj">
@@ -280,6 +292,10 @@
     <ProjectReference Include="..\Indicators\QuantConnect.Indicators.csproj">
       <Project>{73fb2522-c3ed-4e47-8e3d-afad48a6b888}</Project>
       <Name>QuantConnect.Indicators</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Launcher\QuantConnect.Lean.Launcher.csproj">
+      <Project>{09e7b916-e58b-4021-bd8b-c10b4446e226}</Project>
+      <Name>QuantConnect.Lean.Launcher</Name>
     </ProjectReference>
     <ProjectReference Include="..\Logging\QuantConnect.Logging.csproj">
       <Project>{01911409-86BE-4E7D-9947-DF714138610D}</Project>

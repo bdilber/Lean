@@ -32,7 +32,7 @@ namespace QuantConnect.Brokerages.Fxcm
         /// Converts an FXCM order to a QuantConnect order.
         /// </summary>
         /// <param name="fxcmOrder">The FXCM order</param>
-        private static Order ConvertOrder(ExecutionReport fxcmOrder)
+        private Order ConvertOrder(ExecutionReport fxcmOrder)
         {
             Order order;
 
@@ -62,9 +62,9 @@ namespace QuantConnect.Brokerages.Fxcm
                 throw new NotSupportedException("FxcmBrokerage.ConvertOrder(): The FXCM order type " + fxcmOrder.getOrdType() + " is not supported.");
             }
 
-            order.Symbol = ConvertSymbol(fxcmOrder.getInstrument());
+            order.SecurityType = _symbolMapper.GetBrokerageSecurityType(fxcmOrder.getInstrument().getSymbol());
+            order.Symbol = _symbolMapper.GetLeanSymbol(fxcmOrder.getInstrument().getSymbol(), order.SecurityType, Market.FXCM);
             order.Quantity = Convert.ToInt32(fxcmOrder.getOrderQty() * (fxcmOrder.getSide() == SideFactory.BUY ? +1 : -1));
-            order.SecurityType = GetSecurityType(fxcmOrder.getInstrument());
             order.Status = ConvertOrderStatus(fxcmOrder.getFXCMOrdStatus());
             order.BrokerId.Add(Convert.ToInt64(fxcmOrder.getOrderID()));
             order.Duration = ConvertDuration(fxcmOrder.getTimeInForce());
@@ -91,12 +91,14 @@ namespace QuantConnect.Brokerages.Fxcm
         /// Converts an FXCM position to a QuantConnect holding.
         /// </summary>
         /// <param name="fxcmPosition">The FXCM position</param>
-        private static Holding ConvertHolding(PositionReport fxcmPosition)
+        private Holding ConvertHolding(PositionReport fxcmPosition)
         {
+            var securityType = _symbolMapper.GetBrokerageSecurityType(fxcmPosition.getInstrument().getSymbol());
+
             return new Holding
             {
-                Symbol = ConvertSymbol(fxcmPosition.getInstrument()),
-                Type = GetSecurityType(fxcmPosition.getInstrument()),
+                Symbol = _symbolMapper.GetLeanSymbol(fxcmPosition.getInstrument().getSymbol(), securityType, Market.FXCM),
+                Type = securityType,
                 AveragePrice = Convert.ToDecimal(fxcmPosition.getSettlPrice()),
                 ConversionRate = 1.0m,
                 CurrencySymbol = "$",
@@ -104,42 +106,6 @@ namespace QuantConnect.Brokerages.Fxcm
                     ? fxcmPosition.getPositionQty().getLongQty() 
                     : -fxcmPosition.getPositionQty().getShortQty())
             };        
-        }
-
-        /// <summary>
-        /// Gets the <see cref="SecurityType"/> of an FXCM instrument
-        /// </summary>
-        /// <param name="instrument">The FXCM instrument</param>
-        /// <returns>The security type of the instrument</returns>
-        private static SecurityType GetSecurityType(Instrument instrument)
-        {
-            return instrument.getFXCMProductID() == IFixValueDefs.__Fields.FXCMPRODUCTID_FOREX
-                ? SecurityType.Forex
-                : SecurityType.Cfd;
-        }
-
-        /// <summary>
-        /// Converts an FXCM symbol to a QuantConnect symbol
-        /// </summary>
-        private static string ConvertSymbol(Instrument instrument)
-        {
-            return ConvertFxcmSymbolToSymbol(instrument.getSymbol());
-        }
-
-        /// <summary>
-        /// Converts an FXCM symbol to a QuantConnect symbol
-        /// </summary>
-        private static string ConvertFxcmSymbolToSymbol(string symbol)
-        {
-            return symbol.Replace("/", "").ToUpper();
-        }
-
-        /// <summary>
-        /// Converts a QuantConnect symbol to an FXCM symbol
-        /// </summary>
-        public string ConvertSymbolToFxcmSymbol(string symbol)
-        {
-            return _mapInstrumentSymbols[symbol];
         }
 
         /// <summary>
@@ -220,7 +186,8 @@ namespace QuantConnect.Brokerages.Fxcm
                                 cal.get(java.util.Calendar.DAY_OF_MONTH),
                                 cal.get(java.util.Calendar.HOUR_OF_DAY),
                                 cal.get(java.util.Calendar.MINUTE),
-                                cal.get(java.util.Calendar.SECOND));
+                                cal.get(java.util.Calendar.SECOND),
+                                cal.get(java.util.Calendar.MILLISECOND));
         }
 
 

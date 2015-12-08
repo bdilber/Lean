@@ -129,7 +129,7 @@ namespace QuantConnect.Scheduling
         }
 
         /// <summary>
-        /// Specifies an event should fire at market open +- <param name="minutesAfterOpen"></param>
+        /// Specifies an event should fire at market open +- <paramref name="minutesAfterOpen"/>
         /// </summary>
         /// <param name="symbol">The symbol whose market open we want an event for</param>
         /// <param name="minutesAfterOpen">The time after market open that the event should fire</param>
@@ -155,7 +155,7 @@ namespace QuantConnect.Scheduling
         }
 
         /// <summary>
-        /// Specifies an event should fire at the market close +- <param name="minuteBeforeClose"></param>
+        /// Specifies an event should fire at the market close +- <paramref name="minuteBeforeClose"/>
         /// </summary>
         /// <param name="symbol">The symbol whose market close we want an event for</param>
         /// <param name="minuteBeforeClose">The time before market close that the event should fire</param>
@@ -185,7 +185,7 @@ namespace QuantConnect.Scheduling
             Security security;
             if (!_securities.TryGetValue(symbol, out security))
             {
-                throw new Exception(symbol.Permtick + " not found in portfolio. Request this data when initializing the algorithm.");
+                throw new Exception(symbol.ToString() + " not found in portfolio. Request this data when initializing the algorithm.");
             }
             return security;
         }

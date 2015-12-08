@@ -50,7 +50,7 @@ namespace QuantConnect.Brokerages.Tradier
 
         // we're reusing the equity exchange here to grab typical exchange hours
         private static readonly EquityExchange Exchange =
-            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Equity, TimeZones.NewYork));
+            new EquityExchange(MarketHoursDatabase.FromDataFolder().GetExchangeHours(Market.USA, null, SecurityType.Equity, TimeZones.NewYork));
         
         //Access and Refresh Tokens:
         private string _previousResponseRaw = "";
@@ -234,7 +234,7 @@ namespace QuantConnect.Brokerages.Tradier
                 {
                     // tradier sometimes sends back poorly formed messages, response will be null
                     // and we'll extract from it below
-                    Log.Error(err, "TradierBrokerage.Execute(): Poorly formed message: " + err.Message + " Content:" + raw.Content);
+                    Log.Error(err, "Poorly formed message. Content: " + raw.Content);
                 }
 
                 if (response == null)
@@ -354,7 +354,7 @@ namespace QuantConnect.Brokerages.Tradier
                 }
                 catch (Exception err)
                 {
-                    Log.Error("Tradier.RefreshSession(): " + err.Message + " >> " + raw);
+                    Log.Error(err, "Raw: " + raw);
                     success = false;
                 }
             }
@@ -394,7 +394,7 @@ namespace QuantConnect.Brokerages.Tradier
             var request = new RestRequest("accounts/{accountId}/balances", Method.GET);
             request.AddParameter("accountId", accountId, ParameterType.UrlSegment);
             var balContainer = Execute<TradierBalance>(request, TradierApiRequestType.Standard);
-            Log.Trace("TradierBrokerage.GetBalanceDetails(): Bal Container: " + JsonConvert.SerializeObject(balContainer));
+            //Log.Trace("TradierBrokerage.GetBalanceDetails(): Bal Container: " + JsonConvert.SerializeObject(balContainer));
             return balContainer.Balances;
         }
 
@@ -733,7 +733,7 @@ namespace QuantConnect.Brokerages.Tradier
                 }
                 catch (Exception err)
                 {
-                    Log.Error("Tradier.Stream(): Failed to write session parameters to URL: " + err.Message + " >>  ST >>" + err.StackTrace, true);
+                    Log.Error(err, "Failed to write session parameters to URL", true);
                     success = false;
                 }
             }
@@ -765,7 +765,7 @@ namespace QuantConnect.Brokerages.Tradier
                     }
                     catch (Exception err)
                     {
-                        Log.Error("TradierBrokerage.Stream(): " + err.Message);
+                        Log.Error(err);
                         break;
                     }
 
@@ -784,7 +784,7 @@ namespace QuantConnect.Brokerages.Tradier
                     catch (Exception err)
                     {
                         // Do nothing for now. Can come back later to fix. Errors are from Tradier not properly json encoding values E.g. "NaN" string.
-                        Log.Error("TradierBrokerage.Stream(): " + err.Message);
+                        Log.Error(err);
                     }
 
                     // don't yield garbage, just wait for the next one
@@ -830,7 +830,7 @@ namespace QuantConnect.Brokerages.Tradier
             }
             catch (Exception err)
             {
-                Log.Error("Tradier.DeserializeRemoveRoot(): Root Name (" + rootName + "): " + err.Message);
+                Log.Error(err, "RootName: " + rootName);
             }
 
             return obj;
@@ -884,12 +884,12 @@ namespace QuantConnect.Brokerages.Tradier
         public override List<Holding> GetAccountHoldings()
         {
             var holdings = GetPositions().Select(ConvertHolding).Where(x => x.Quantity != 0).ToList();
-            var symbols = holdings.Select(x => x.Symbol).ToList();
+            var symbols = holdings.Select(x => x.Symbol.Value).ToList();
             var quotes = GetQuotes(symbols).ToDictionary(x => x.Symbol);
             foreach (var holding in holdings)
             {
                 TradierQuote quote;
-                if (quotes.TryGetValue(holding.Symbol, out quote))
+                if (quotes.TryGetValue(holding.Symbol.Value, out quote))
                 {
                     holding.MarketPrice = quote.Last;
                 }
@@ -928,7 +928,7 @@ namespace QuantConnect.Brokerages.Tradier
             var cachedOpenOrder = _cachedOpenOrdersByTradierOrderID.FirstOrDefault(x => x.Value.Symbol == order.Symbol.Value).Value;
             if (cachedOpenOrder != null)
             {
-                var qcOrder = _orderProvider.GetOrderByBrokerageId((int) cachedOpenOrder.Id);
+                var qcOrder = _orderProvider.GetOrderByBrokerageId(cachedOpenOrder.Id);
                 if (qcOrder == null)
                 {
                     // clean up our mess, this should never be encountered.
@@ -1310,9 +1310,11 @@ namespace QuantConnect.Brokerages.Tradier
                 foreach (var cachedOrder in _cachedOpenOrdersByTradierOrderID)
                 {
                     TradierOrder updatedOrder;
-                    if (updatedOrders.TryGetValue(cachedOrder.Key, out updatedOrder))
+                    var hasUpdatedOrder = updatedOrders.TryGetValue(cachedOrder.Key, out updatedOrder);
+                    if (hasUpdatedOrder)
                     {
                         // determine if the order has been updated and produce fills accordingly
+                        _cachedOpenOrdersByTradierOrderID[cachedOrder.Key] = updatedOrder;
                         ProcessPotentiallyUpdatedOrder(cachedOrder.Value, updatedOrder);
                         continue;
                     }
@@ -1336,14 +1338,15 @@ namespace QuantConnect.Brokerages.Tradier
                                 Log.Error(string.Format("TradierBrokerage.CheckForFills(): Unable to locate order {0} in cached open orders.", cachedOrderLocal.Key));
                                 throw new Exception("TradierBrokerage.CheckForFills(): GetOrder() return null response");
                             }
-                            
+
+                            _cachedOpenOrdersByTradierOrderID[cachedOrderLocal.Key] = updatedOrderLocal;
                             ProcessPotentiallyUpdatedOrder(cachedOrderLocal.Value, updatedOrderLocal);
                         }
                         catch (Exception err)
                         {
                             Log.Error(err);
                             OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "PendingOrderNotReturned",
-                                "An error ocurred while trying to resolve fill events from Tradier orders: " + err.Message));
+                                "An error ocurred while trying to resolve fill events from Tradier orders: " + err));
                         }
                         finally
                         {
@@ -1373,7 +1376,7 @@ namespace QuantConnect.Brokerages.Tradier
                         {
                             // verify we don't have them in the order provider
                             Log.Trace("TradierBrokerage.CheckForFills(): Verifying missing brokerage IDs: " + string.Join(",", localUnknownTradierOrderIDs));
-                            var orders = localUnknownTradierOrderIDs.Select(x => _orderProvider.GetOrderByBrokerageId((int) x)).Where(x => x != null);
+                            var orders = localUnknownTradierOrderIDs.Select(x => _orderProvider.GetOrderByBrokerageId(x)).Where(x => x != null);
                             var stillUnknownOrderIDs = localUnknownTradierOrderIDs.Where(x => !orders.Any(y => y.BrokerId.Contains(x))).ToList();
                             if (stillUnknownOrderIDs.Count > 0)
                             {
@@ -1406,7 +1409,7 @@ namespace QuantConnect.Brokerages.Tradier
                             foreach (var id in localUnknownTradierOrderIDs) _unknownTradierOrderIDs.Add(id);
 
                             Log.Error(err);
-                            OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "UnknownIdResolution", "An error ocurred while trying to resolve unknown Tradier order IDs: " + err.Message));
+                            OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "UnknownIdResolution", "An error ocurred while trying to resolve unknown Tradier order IDs: " + err));
                         }
                     });
                 }
@@ -1414,7 +1417,7 @@ namespace QuantConnect.Brokerages.Tradier
             catch (Exception err)
             {
                 Log.Error(err);
-                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "CheckForFillsError", "An error ocurred while checking for fills: " + err.Message));
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "CheckForFillsError", "An error ocurred while checking for fills: " + err));
             }
             finally
             {
@@ -1438,7 +1441,7 @@ namespace QuantConnect.Brokerages.Tradier
             if (updatedOrder.RemainingQuantity != cachedOrder.RemainingQuantity 
              || ConvertStatus(updatedOrder.Status) != ConvertStatus(cachedOrder.Status))
             {
-                var qcOrder = _orderProvider.GetOrderByBrokerageId((int)updatedOrder.Id);
+                var qcOrder = _orderProvider.GetOrderByBrokerageId(updatedOrder.Id);
                 const int orderFee = 0;
                 var fill = new OrderEvent(qcOrder, DateTime.UtcNow, orderFee, "Tradier Fill Event")
                 {
@@ -1502,7 +1505,7 @@ namespace QuantConnect.Brokerages.Tradier
                                 catch (Exception err)
                                 {
                                     Log.Error(err);
-                                    OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "ContingentOrderError", "An error ocurred while trying to submit an Tradier contingent order: " + err.Message));
+                                    OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "ContingentOrderError", "An error ocurred while trying to submit an Tradier contingent order: " + err));
                                     OnOrderEvent(new OrderEvent(qcOrder, DateTime.UtcNow, orderFee) { Status = OrderStatus.Canceled });
                                 }
                                 finally
@@ -1599,14 +1602,14 @@ namespace QuantConnect.Brokerages.Tradier
                 default:
                     throw new NotImplementedException("The Tradier order type " + order.Type + " is not implemented.");
             }
-            qcOrder.Symbol = new Symbol(order.Symbol);
+            qcOrder.Symbol = Symbol.Create(order.Symbol, SecurityType.Equity, Market.USA);
             qcOrder.Quantity = ConvertQuantity(order);
             qcOrder.SecurityType = SecurityType.Equity; // tradier only support equities? but also options??
             qcOrder.Status = ConvertStatus(order.Status);
             qcOrder.BrokerId.Add(order.Id);
             //qcOrder.ContingentId =
             qcOrder.Duration = ConvertDuration(order.Duration);
-            var orderByBrokerageId = _orderProvider.GetOrderByBrokerageId((int) order.Id);
+            var orderByBrokerageId = _orderProvider.GetOrderByBrokerageId(order.Id);
             if (orderByBrokerageId != null)
             {
                 qcOrder.Id = orderByBrokerageId.Id;
@@ -1760,7 +1763,7 @@ namespace QuantConnect.Brokerages.Tradier
         {
             return new Holding
             {
-                Symbol = position.Symbol,
+                Symbol = Symbol.Create(position.Symbol, SecurityType.Equity, Market.USA),
                 Type = SecurityType.Equity,
                 AveragePrice = position.CostBasis/position.Quantity,
                 ConversionRate = 1.0m,
